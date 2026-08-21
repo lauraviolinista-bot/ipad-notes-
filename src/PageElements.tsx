@@ -1,16 +1,19 @@
 import { useRef, useState } from 'react'
 import type { PageElement, TextElement, TextStyle } from './types'
+import { FONT_STACKS } from './fonts'
+
+const BASE_TEXT_STYLE = { fontFamily: 'sans', fontSize: 16, bold: false, italic: false, align: 'left' } as const
 
 export const TEXT_STYLE_PRESETS: TextStyle[] = [
-  { fill: null, border: null, textColor: '#1c1c1e' },
-  { fill: '#ff6b6b', border: null, textColor: '#ffffff' },
-  { fill: '#4a90ff', border: null, textColor: '#ffffff' },
-  { fill: '#f5a623', border: null, textColor: '#ffffff' },
-  { fill: '#b57cff', border: null, textColor: '#ffffff' },
-  { fill: '#4ecb71', border: null, textColor: '#ffffff' },
-  { fill: null, border: '#1c1c1e', textColor: '#1c1c1e' },
-  { fill: null, border: '#ff6b6b', textColor: '#1c1c1e' },
-  { fill: null, border: '#4a90ff', textColor: '#1c1c1e' },
+  { fill: null, border: null, textColor: '#1c1c1e', ...BASE_TEXT_STYLE },
+  { fill: '#ff6b6b', border: null, textColor: '#ffffff', ...BASE_TEXT_STYLE },
+  { fill: '#4a90ff', border: null, textColor: '#ffffff', ...BASE_TEXT_STYLE },
+  { fill: '#f5a623', border: null, textColor: '#ffffff', ...BASE_TEXT_STYLE },
+  { fill: '#b57cff', border: null, textColor: '#ffffff', ...BASE_TEXT_STYLE },
+  { fill: '#4ecb71', border: null, textColor: '#ffffff', ...BASE_TEXT_STYLE },
+  { fill: null, border: '#1c1c1e', textColor: '#1c1c1e', ...BASE_TEXT_STYLE },
+  { fill: null, border: '#ff6b6b', textColor: '#1c1c1e', ...BASE_TEXT_STYLE },
+  { fill: null, border: '#4a90ff', textColor: '#1c1c1e', ...BASE_TEXT_STYLE },
 ]
 
 interface PageElementsProps {
@@ -110,6 +113,13 @@ function TextBox({
   onDelete: (id: string) => void
 }) {
   const [editing, setEditing] = useState(false)
+  const textStyle: React.CSSProperties = {
+    fontFamily: FONT_STACKS[el.style.fontFamily],
+    fontSize: el.style.fontSize,
+    fontWeight: el.style.bold ? 700 : 400,
+    fontStyle: el.style.italic ? 'italic' : 'normal',
+    textAlign: el.style.align,
+  }
 
   return (
     <div
@@ -122,6 +132,7 @@ function TextBox({
         background: el.style.fill ?? 'transparent',
         border: el.style.border ? `2px solid ${el.style.border}` : 'none',
         color: el.style.textColor,
+        ...textStyle,
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -134,7 +145,7 @@ function TextBox({
           value={el.text}
           onChange={(e) => onChange({ ...el, text: e.target.value })}
           onBlur={() => setEditing(false)}
-          style={{ color: el.style.textColor }}
+          style={{ color: el.style.textColor, ...textStyle }}
         />
       ) : (
         <span>{el.text || 'Texto'}</span>

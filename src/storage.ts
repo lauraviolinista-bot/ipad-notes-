@@ -1,4 +1,4 @@
-import type { Notebook, NotebookCover, Page, PageTemplate } from './types'
+import type { Notebook, NotebookCover, Page, PageTemplate, TextStyle } from './types'
 import { COVER_PRESETS } from './coverPresets'
 
 const KEY = 'goodnotes-clone:notebooks'
@@ -13,7 +13,21 @@ export function loadNotebooks(): Notebook[] {
       cover: nb.cover ?? COVER_PRESETS[0],
       pages: nb.pages.map((p) => ({
         ...p,
-        elements: p.elements ?? [],
+        elements: (p.elements ?? []).map((el) =>
+          el.type === 'text'
+            ? {
+                ...el,
+                style: {
+                  fontFamily: 'sans',
+                  fontSize: 16,
+                  bold: false,
+                  italic: false,
+                  align: 'left',
+                  ...(el.style as Partial<TextStyle>),
+                } as TextStyle,
+              }
+            : el,
+        ),
         template: p.template ?? 'blank',
         background: p.background ?? null,
         ocrText: p.ocrText ?? '',

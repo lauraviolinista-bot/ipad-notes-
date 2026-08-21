@@ -31,10 +31,18 @@ export interface Stroke {
   points: StrokePoint[]
 }
 
+export type FontFamily = 'sans' | 'serif' | 'mono' | 'handwritten'
+export type TextAlign = 'left' | 'center' | 'right'
+
 export type TextStyle = {
   fill: string | null
   border: string | null
   textColor: string
+  fontFamily: FontFamily
+  fontSize: number
+  bold: boolean
+  italic: boolean
+  align: TextAlign
 }
 
 export interface TextElement {

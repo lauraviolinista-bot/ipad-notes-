@@ -34,6 +34,11 @@ interface ToolbarProps {
   importBusy: string | null
   onIndexNotebook: () => void
   indexingStatus: string | null
+  onExportPageImage: () => void
+  onExportNotebookPdf: () => void
+  onSharePage: () => void
+  canShare: boolean
+  exportBusy: string | null
 }
 
 export default function Toolbar({
@@ -62,17 +67,24 @@ export default function Toolbar({
   importBusy,
   onIndexNotebook,
   indexingStatus,
+  onExportPageImage,
+  onExportNotebookPdf,
+  onSharePage,
+  canShare,
+  exportBusy,
 }: ToolbarProps) {
   const [brushLibraryOpen, setBrushLibraryOpen] = useState(false)
   const [stylePopoverOpen, setStylePopoverOpen] = useState(false)
   const [stickerPopoverOpen, setStickerPopoverOpen] = useState(false)
   const [shapePopoverOpen, setShapePopoverOpen] = useState(false)
   const [importPopoverOpen, setImportPopoverOpen] = useState(false)
+  const [exportPopoverOpen, setExportPopoverOpen] = useState(false)
   const penButtonRef = useRef<HTMLButtonElement>(null)
   const styleButtonRef = useRef<HTMLButtonElement>(null)
   const stickerButtonRef = useRef<HTMLButtonElement>(null)
   const shapeButtonRef = useRef<HTMLButtonElement>(null)
   const importButtonRef = useRef<HTMLButtonElement>(null)
+  const exportButtonRef = useRef<HTMLButtonElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const pdfInputRef = useRef<HTMLInputElement>(null)
 
@@ -121,6 +133,14 @@ export default function Toolbar({
           title="Indexar el cuaderno para poder buscar el texto manuscrito"
         >
           {indexingStatus ?? '🔤 Indexar'}
+        </button>
+        <button
+          ref={exportButtonRef}
+          className="icon-btn"
+          onClick={() => setExportPopoverOpen((v) => !v)}
+          disabled={exportBusy !== null}
+        >
+          {exportBusy ?? '📤 Exportar'}
         </button>
         <button className="icon-btn primary" onClick={onAddPage}>
           + Página
@@ -288,6 +308,43 @@ export default function Toolbar({
           e.target.value = ''
         }}
       />
+
+      {exportPopoverOpen && (
+        <Popover anchorRef={exportButtonRef} onClose={() => setExportPopoverOpen(false)}>
+          <div className="import-menu">
+            <span className="color-section-label">Exportar / compartir</span>
+            <button
+              className="import-menu-item"
+              onClick={() => {
+                onExportPageImage()
+                setExportPopoverOpen(false)
+              }}
+            >
+              🖼️ Página actual como imagen
+            </button>
+            <button
+              className="import-menu-item"
+              onClick={() => {
+                onExportNotebookPdf()
+                setExportPopoverOpen(false)
+              }}
+            >
+              📄 Cuaderno completo como PDF
+            </button>
+            {canShare && (
+              <button
+                className="import-menu-item"
+                onClick={() => {
+                  onSharePage()
+                  setExportPopoverOpen(false)
+                }}
+              >
+                📤 Compartir página actual
+              </button>
+            )}
+          </div>
+        </Popover>
+      )}
 
       {brushLibraryOpen && (
         <BrushLibrary

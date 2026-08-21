@@ -7,6 +7,7 @@ import type {
   ShapeKind,
   Stroke,
   TextElement,
+  TextStyle,
   Tool,
 } from './types'
 import { emptyNotebook, emptyPage, loadNotebooks, newId, saveNotebooks } from './storage'
@@ -19,6 +20,7 @@ import NewNotebookModal from './NewNotebookModal'
 import TemplatePicker from './TemplatePicker'
 import SelectionActionBar from './SelectionActionBar'
 import SearchModal from './SearchModal'
+import TextFormatBar from './TextFormatBar'
 import { templateBackgroundStyle } from './pageTemplates'
 import { strokesBBox } from './geometry'
 import { importImageFile } from './imageImport'
@@ -44,6 +46,7 @@ export default function App() {
   const [importBusy, setImportBusy] = useState<string | null>(null)
   const [indexingStatus, setIndexingStatus] = useState<string | null>(null)
   const [recognizing, setRecognizing] = useState(false)
+  const [exportBusy, setExportBusy] = useState<string | null>(null)
 
   const historyRef = useRef<Notebook[][]>([])
   const futureRef = useRef<Notebook[][]>([])
@@ -56,6 +59,8 @@ export default function App() {
   useEffect(() => {
     setSelectedStrokeIds([])
   }, [tool, activeNotebookId, activePageIndex])
+
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
 
   const activeNotebook = notebooks.find((n) => n.id === activeNotebookId) ?? null
   const activePage = activeNotebook?.pages[activePageIndex] ?? null
@@ -151,6 +156,22 @@ export default function App() {
       pages: nb.pages.map((p, i) =>
         i === activePageIndex
           ? { ...p, elements: p.elements.map((el) => (el.id === element.id ? element : el)) }
+          : p,
+      ),
+    }))
+  }
+
+  const handleTextStyleChange = (id: string, style: Partial<TextStyle>) => {
+    updateActiveNotebook((nb) => ({
+      ...nb,
+      pages: nb.pages.map((p, i) =>
+        i === activePageIndex
+          ? {
+              ...p,
+              elements: p.elements.map((el) =>
+                el.id === id && el.type === 'text' ? { ...el, style: { ...el.style, ...style } } : el,
+              ),
+            }
           : p,
       ),
     }))
@@ -308,6 +329,58 @@ export default function App() {
     setIndexingStatus(null)
   }
 
+  const getPageSize = () => {
+    const rect = paperRef.current?.getBoundingClientRect()
+    return {
+      width: Math.max(200, Math.round(rect?.width ?? 800)),
+      height: Math.max(200, Math.round(rect?.height ?? 1000)),
+    }
+  }
+
+  const handleExportPageImage = async () => {
+    if (!activePage || !activeNotebook) return
+    setExportBusy('Exportando…')
+    try {
+      const { exportPageAsImage } = await import('./export')
+      const { width, height } = getPageSize()
+      const filename = `${activeNotebook.name || 'pagina'}-${activePageIndex + 1}.png`
+      await exportPageAsImage(activePage, width, height, filename)
+    } catch (err) {
+      console.error('No se pudo exportar la página', err)
+    } finally {
+      setExportBusy(null)
+    }
+  }
+
+  const handleExportNotebookPdf = async () => {
+    if (!activeNotebook) return
+    setExportBusy('Generando PDF…')
+    try {
+      const { exportNotebookAsPdf } = await import('./export')
+      const { width, height } = getPageSize()
+      await exportNotebookAsPdf(activeNotebook, width, height)
+    } catch (err) {
+      console.error('No se pudo exportar el PDF', err)
+    } finally {
+      setExportBusy(null)
+    }
+  }
+
+  const handleSharePage = async () => {
+    if (!activePage || !activeNotebook) return
+    setExportBusy('Compartiendo…')
+    try {
+      const { sharePageImage } = await import('./export')
+      const { width, height } = getPageSize()
+      const filename = `${activeNotebook.name || 'pagina'}-${activePageIndex + 1}.png`
+      await sharePageImage(activePage, width, height, filename)
+    } catch (err) {
+      console.error('No se pudo compartir la página', err)
+    } finally {
+      setExportBusy(null)
+    }
+  }
+
   const handleAddPage = (template: PageTemplate) => {
     const nextIndex = activeNotebook?.pages.length ?? 0
     updateActiveNotebook((nb) => ({ ...nb, pages: [...nb.pages, emptyPage(template)] }))
@@ -410,6 +483,11 @@ export default function App() {
         importBusy={importBusy}
         onIndexNotebook={handleIndexNotebook}
         indexingStatus={indexingStatus}
+        onExportPageImage={handleExportPageImage}
+        onExportNotebookPdf={handleExportNotebookPdf}
+        onSharePage={handleSharePage}
+        canShare={canShare}
+        exportBusy={exportBusy}
       />
       {templatePickerOpen && (
         <TemplatePicker onPick={handleAddPage} onClose={() => setTemplatePickerOpen(false)} />
@@ -450,6 +528,21 @@ export default function App() {
             onChange={handleElementChange}
             onDelete={handleElementDelete}
           />
+          {tool === 'select' &&
+            selectedElementId &&
+            (() => {
+              const el = activePage.elements.find((e) => e.id === selectedElementId)
+              if (!el || el.type !== 'text') return null
+              return (
+                <TextFormatBar
+                  left={el.x}
+                  top={Math.max(8, el.y - 60)}
+                  element={el}
+                  onChangeStyle={(style) => handleTextStyleChange(el.id, style)}
+                  onDelete={() => handleElementDelete(el.id)}
+                />
+              )
+            })()}
           {tool === 'select' &&
             selectedStrokeIds.length > 0 &&
             (() => {
