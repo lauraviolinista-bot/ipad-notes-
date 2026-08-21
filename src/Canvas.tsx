@@ -1,22 +1,25 @@
 import { useEffect, useRef } from 'react'
-import type { Page, Stroke, StrokePoint, Tool } from './types'
+import type { Page, PenType, Stroke, StrokePoint } from './types'
+import { getPenPreset } from './penTypes'
 
 interface CanvasProps {
   page: Page
-  tool: Tool
+  tool: PenType | 'eraser'
   color: string
   width: number
+  straight: boolean
   onStrokeEnd: (stroke: Stroke) => void
   onErase: (strokeIds: string[]) => void
+  onPointerDownCapture?: () => void
 }
 
-const TOOL_OPACITY: Record<Tool, number> = {
-  pen: 1,
-  highlighter: 0.35,
-  eraser: 1,
+function seededJitter(seed: number) {
+  const x = Math.sin(seed * 12.9898) * 43758.5453
+  return x - Math.floor(x)
 }
 
 function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke) {
+  const preset = getPenPreset(stroke.tool)
   if (stroke.points.length < 2) {
     if (stroke.points.length === 1) {
       const p = stroke.points[0]
@@ -33,10 +36,32 @@ function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke) {
   ctx.lineJoin = 'round'
   ctx.strokeStyle = stroke.color
   ctx.globalAlpha = stroke.opacity
+
+  if (preset.textured) {
+    for (let i = 1; i < stroke.points.length; i++) {
+      const a = stroke.points[i - 1]
+      const b = stroke.points[i]
+      const w = Math.max(1, stroke.width * ((a.pressure + b.pressure) / 2))
+      const grains = 3
+      for (let g = 0; g < grains; g++) {
+        const jitter = (seededJitter(i * 7.3 + g) - 0.5) * w * 0.6
+        ctx.lineWidth = Math.max(0.5, w * 0.4)
+        ctx.globalAlpha = stroke.opacity * (0.5 + seededJitter(i + g) * 0.5)
+        ctx.beginPath()
+        ctx.moveTo(a.x + jitter, a.y + jitter)
+        ctx.lineTo(b.x + jitter, b.y + jitter)
+        ctx.stroke()
+      }
+    }
+    ctx.globalAlpha = 1
+    return
+  }
+
   for (let i = 1; i < stroke.points.length; i++) {
     const a = stroke.points[i - 1]
     const b = stroke.points[i]
-    ctx.lineWidth = Math.max(1, stroke.width * ((a.pressure + b.pressure) / 2))
+    const pressureFactor = preset.pressureSensitive ? (a.pressure + b.pressure) / 2 : 1
+    ctx.lineWidth = Math.max(1, stroke.width * pressureFactor)
     ctx.beginPath()
     ctx.moveTo(a.x, a.y)
     ctx.lineTo(b.x, b.y)
@@ -56,10 +81,20 @@ function distToSegment(p: StrokePoint, a: StrokePoint, b: StrokePoint) {
   return Math.hypot(p.x - projX, p.y - projY)
 }
 
-export default function Canvas({ page, tool, color, width, onStrokeEnd, onErase }: CanvasProps) {
+export default function Canvas({
+  page,
+  tool,
+  color,
+  width,
+  straight,
+  onStrokeEnd,
+  onErase,
+  onPointerDownCapture,
+}: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const drawingRef = useRef(false)
   const currentStrokeRef = useRef<Stroke | null>(null)
+  const startPointRef = useRef<StrokePoint | null>(null)
   const erasedRef = useRef<Set<string>>(new Set())
 
   const redraw = () => {
@@ -67,7 +102,8 @@ export default function Canvas({ page, tool, color, width, onStrokeEnd, onErase 
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    const dpr = window.devicePixelRatio || 1
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr)
     for (const stroke of page.strokes) {
       drawStroke(ctx, stroke)
     }
@@ -93,7 +129,7 @@ export default function Canvas({ page, tool, color, width, onStrokeEnd, onErase 
       canvas.style.width = `${rect.width}px`
       canvas.style.height = `${rect.height}px`
       const ctx = canvas.getContext('2d')
-      ctx?.scale(dpr, dpr)
+      ctx?.setTransform(dpr, 0, 0, dpr, 0, 0)
       redraw()
     }
     handleResize()
@@ -114,6 +150,7 @@ export default function Canvas({ page, tool, color, width, onStrokeEnd, onErase 
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (e.pointerType === 'touch' && e.isPrimary === false) return
+    onPointerDownCapture?.()
     canvasRef.current?.setPointerCapture(e.pointerId)
     drawingRef.current = true
 
@@ -123,13 +160,17 @@ export default function Canvas({ page, tool, color, width, onStrokeEnd, onErase 
       return
     }
 
+    const point = getPoint(e)
+    startPointRef.current = point
+    const preset = getPenPreset(tool)
     const stroke: Stroke = {
       id: Math.random().toString(36).slice(2),
       tool,
       color,
       width,
-      opacity: TOOL_OPACITY[tool],
-      points: [getPoint(e)],
+      opacity: preset.opacity,
+      straight: straight && preset.supportsStraightLine,
+      points: [point],
     }
     currentStrokeRef.current = stroke
   }
@@ -152,8 +193,9 @@ export default function Canvas({ page, tool, color, width, onStrokeEnd, onErase 
     }
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
+    const dpr = window.devicePixelRatio || 1
     if (canvas && ctx) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr)
       for (const stroke of page.strokes) {
         if (!erasedRef.current.has(stroke.id)) drawStroke(ctx, stroke)
       }
@@ -170,9 +212,14 @@ export default function Canvas({ page, tool, color, width, onStrokeEnd, onErase 
 
     const stroke = currentStrokeRef.current
     if (!stroke) return
-    stroke.points.push(getPoint(e))
-    const ctx = canvasRef.current?.getContext('2d')
-    if (ctx) redraw()
+    const point = getPoint(e)
+
+    if (stroke.straight && startPointRef.current) {
+      stroke.points = [startPointRef.current, point]
+    } else {
+      stroke.points.push(point)
+    }
+    redraw()
   }
 
   const handlePointerUp = () => {
@@ -189,22 +236,21 @@ export default function Canvas({ page, tool, color, width, onStrokeEnd, onErase 
 
     const stroke = currentStrokeRef.current
     currentStrokeRef.current = null
+    startPointRef.current = null
     if (stroke && stroke.points.length > 0) {
       onStrokeEnd(stroke)
     }
   }
 
   return (
-    <div className="canvas-wrap">
-      <canvas
-        ref={canvasRef}
-        className="paper"
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-      />
-    </div>
+    <canvas
+      ref={canvasRef}
+      className="paper"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+    />
   )
 }

@@ -6,7 +6,11 @@ export function loadNotebooks(): Notebook[] {
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return []
-    return JSON.parse(raw) as Notebook[]
+    const notebooks = JSON.parse(raw) as Notebook[]
+    return notebooks.map((nb) => ({
+      ...nb,
+      pages: nb.pages.map((p) => ({ ...p, elements: p.elements ?? [] })),
+    }))
   } catch {
     return []
   }
@@ -25,7 +29,7 @@ export function newId(): string {
 }
 
 export function emptyPage() {
-  return { id: newId(), strokes: [] }
+  return { id: newId(), strokes: [], elements: [] }
 }
 
 export function emptyNotebook(name: string): Notebook {

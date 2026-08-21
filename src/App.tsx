@@ -1,19 +1,27 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Notebook, Stroke, Tool } from './types'
-import { emptyNotebook, emptyPage, loadNotebooks, saveNotebooks } from './storage'
+import type { Notebook, PageElement, PenType, Stroke, TextElement, Tool } from './types'
+import { emptyNotebook, emptyPage, loadNotebooks, newId, saveNotebooks } from './storage'
 import Toolbar from './Toolbar'
 import Canvas from './Canvas'
 import PageStrip from './PageStrip'
 import Library from './Library'
+import PageElements, { TEXT_STYLE_PRESETS } from './PageElements'
+import StickerPicker from './StickerPicker'
 import './App.css'
+
+const MAX_RECENT_COLORS = 6
 
 export default function App() {
   const [notebooks, setNotebooks] = useState<Notebook[]>(() => loadNotebooks())
   const [activeNotebookId, setActiveNotebookId] = useState<string | null>(null)
   const [activePageIndex, setActivePageIndex] = useState(0)
-  const [tool, setTool] = useState<Tool>('pen')
+  const [tool, setTool] = useState<Tool>('pencil')
   const [color, setColor] = useState('#1c1c1e')
-  const [width, setWidth] = useState(4)
+  const [width, setWidth] = useState(2)
+  const [straight, setStraight] = useState(false)
+  const [recentColors, setRecentColors] = useState<string[]>([])
+  const [selectedElementId, setSelectedElementId] = useState<string | null>(null)
+  const [stickerPickerOpen, setStickerPickerOpen] = useState(false)
 
   const historyRef = useRef<Notebook[][]>([])
   const futureRef = useRef<Notebook[][]>([])
@@ -38,6 +46,11 @@ export default function App() {
     )
   }
 
+  const handleColorChange = (c: string) => {
+    setColor(c)
+    setRecentColors((prev) => [c, ...prev.filter((x) => x !== c)].slice(0, MAX_RECENT_COLORS))
+  }
+
   const handleStrokeEnd = (stroke: Stroke) => {
     updateActiveNotebook((nb) => ({
       ...nb,
@@ -56,6 +69,67 @@ export default function App() {
           : p,
       ),
     }))
+  }
+
+  const handleElementChange = (element: PageElement) => {
+    updateActiveNotebook((nb) => ({
+      ...nb,
+      pages: nb.pages.map((p, i) =>
+        i === activePageIndex
+          ? { ...p, elements: p.elements.map((el) => (el.id === element.id ? element : el)) }
+          : p,
+      ),
+    }))
+  }
+
+  const handleElementDelete = (id: string) => {
+    updateActiveNotebook((nb) => ({
+      ...nb,
+      pages: nb.pages.map((p, i) =>
+        i === activePageIndex ? { ...p, elements: p.elements.filter((el) => el.id !== id) } : p,
+      ),
+    }))
+    setSelectedElementId(null)
+  }
+
+  const handleAddText = () => {
+    const el: TextElement = {
+      id: newId(),
+      type: 'text',
+      x: 80,
+      y: 80,
+      w: 180,
+      h: 60,
+      text: '',
+      style: TEXT_STYLE_PRESETS[0],
+    }
+    updateActiveNotebook((nb) => ({
+      ...nb,
+      pages: nb.pages.map((p, i) =>
+        i === activePageIndex ? { ...p, elements: [...p.elements, el] } : p,
+      ),
+    }))
+    setTool('select')
+    setSelectedElementId(el.id)
+  }
+
+  const handleAddSticker = (emoji: string) => {
+    const el: PageElement = {
+      id: newId(),
+      type: 'sticker',
+      x: 120,
+      y: 120,
+      size: 48,
+      emoji,
+    }
+    updateActiveNotebook((nb) => ({
+      ...nb,
+      pages: nb.pages.map((p, i) =>
+        i === activePageIndex ? { ...p, elements: [...p.elements, el] } : p,
+      ),
+    }))
+    setStickerPickerOpen(false)
+    setTool('select')
   }
 
   const handleAddPage = () => {
@@ -119,25 +193,47 @@ export default function App() {
         tool={tool}
         color={color}
         width={width}
+        straight={straight}
+        recentColors={recentColors}
         canUndo={historyRef.current.length > 0}
         canRedo={futureRef.current.length > 0}
         onToolChange={setTool}
-        onColorChange={setColor}
+        onColorChange={handleColorChange}
         onWidthChange={setWidth}
+        onStraightToggle={() => setStraight((v) => !v)}
         onUndo={handleUndo}
         onRedo={handleRedo}
         onAddPage={handleAddPage}
         onBack={() => setActiveNotebookId(null)}
+        onOpenText={handleAddText}
+        onOpenStickers={() => setStickerPickerOpen((v) => !v)}
       />
-      <Canvas
-        key={activePage.id}
-        page={activePage}
-        tool={tool}
-        color={color}
-        width={width}
-        onStrokeEnd={handleStrokeEnd}
-        onErase={handleErase}
-      />
+      {stickerPickerOpen && (
+        <StickerPicker onPick={handleAddSticker} onClose={() => setStickerPickerOpen(false)} />
+      )}
+      <div className="canvas-wrap" onPointerDown={() => setSelectedElementId(null)}>
+        {tool !== 'select' ? (
+          <Canvas
+            key={activePage.id}
+            page={activePage}
+            tool={tool as PenType | 'eraser'}
+            color={color}
+            width={width}
+            straight={straight}
+            onStrokeEnd={handleStrokeEnd}
+            onErase={handleErase}
+          />
+        ) : (
+          <div className="paper" />
+        )}
+        <PageElements
+          elements={activePage.elements}
+          selectedId={selectedElementId}
+          onSelect={setSelectedElementId}
+          onChange={handleElementChange}
+          onDelete={handleElementDelete}
+        />
+      </div>
       <PageStrip
         pages={activeNotebook.pages}
         activeIndex={activePageIndex}

@@ -1,22 +1,27 @@
-import type { Tool } from './types'
-
-const COLORS = ['#1c1c1e', '#d0021b', '#0070f3', '#0a8f4c', '#f5a623']
-const WIDTHS = [2, 4, 8]
+import { useState } from 'react'
+import type { PenType, Tool } from './types'
+import { PEN_PRESETS, getPenPreset } from './penTypes'
+import ColorPicker from './ColorPicker'
 
 interface ToolbarProps {
   notebookName: string
   tool: Tool
   color: string
   width: number
+  straight: boolean
+  recentColors: string[]
   canUndo: boolean
   canRedo: boolean
   onToolChange: (t: Tool) => void
   onColorChange: (c: string) => void
   onWidthChange: (w: number) => void
+  onStraightToggle: () => void
   onUndo: () => void
   onRedo: () => void
   onAddPage: () => void
   onBack: () => void
+  onOpenText: () => void
+  onOpenStickers: () => void
 }
 
 export default function Toolbar({
@@ -24,16 +29,35 @@ export default function Toolbar({
   tool,
   color,
   width,
+  straight,
+  recentColors,
   canUndo,
   canRedo,
   onToolChange,
   onColorChange,
   onWidthChange,
+  onStraightToggle,
   onUndo,
   onRedo,
   onAddPage,
   onBack,
+  onOpenText,
+  onOpenStickers,
 }: ToolbarProps) {
+  const [penMenuOpen, setPenMenuOpen] = useState(false)
+  const [stylePopoverOpen, setStylePopoverOpen] = useState(false)
+
+  const isPenTool = tool !== 'eraser' && tool !== 'select'
+  const activePreset = isPenTool ? getPenPreset(tool as PenType) : null
+
+  const selectPen = (id: PenType) => {
+    onToolChange(id)
+    const preset = getPenPreset(id)
+    onWidthChange(preset.defaultWidth)
+    setPenMenuOpen(false)
+    setStylePopoverOpen(true)
+  }
+
   return (
     <header className="toolbar">
       <button className="icon-btn" onClick={onBack} aria-label="Volver a notebooks">
@@ -41,52 +65,97 @@ export default function Toolbar({
       </button>
       <span className="notebook-title">{notebookName}</span>
 
+      <div className="group pen-selector">
+        <button
+          className={`tool-btn ${isPenTool ? 'active' : ''}`}
+          onClick={() => {
+            setPenMenuOpen((v) => !v)
+            setStylePopoverOpen(false)
+          }}
+        >
+          {activePreset ? `${activePreset.icon} ${activePreset.label}` : '✏️ Pluma'}
+        </button>
+        {penMenuOpen && (
+          <div className="pen-menu">
+            {PEN_PRESETS.map((p) => (
+              <button
+                key={p.id}
+                className={`pen-menu-item ${tool === p.id ? 'active' : ''}`}
+                onClick={() => selectPen(p.id)}
+              >
+                <span className="pen-icon">{p.icon}</span>
+                <span>{p.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {isPenTool && (
+          <button
+            className="icon-btn style-toggle"
+            onClick={() => {
+              setStylePopoverOpen((v) => !v)
+              setPenMenuOpen(false)
+            }}
+            aria-label="Color y grosor"
+          >
+            <span className="swatch-preview" style={{ background: color }} />
+          </button>
+        )}
+        {stylePopoverOpen && isPenTool && activePreset && (
+          <div className="style-popover">
+            <ColorPicker color={color} recentColors={recentColors} onChange={onColorChange} />
+            <div className="width-slider-row">
+              <span className="color-section-label">Tamaño</span>
+              <input
+                type="range"
+                min={activePreset.minWidth}
+                max={activePreset.maxWidth}
+                step={0.5}
+                value={width}
+                onChange={(e) => onWidthChange(Number(e.target.value))}
+              />
+              <span className="width-value">{width.toFixed(1)}</span>
+            </div>
+            {activePreset.supportsStraightLine && (
+              <label className="straight-toggle-row">
+                <span>Línea recta</span>
+                <input type="checkbox" checked={straight} onChange={onStraightToggle} />
+              </label>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="group">
         <button
-          className={`tool-btn ${tool === 'pen' ? 'active' : ''}`}
-          onClick={() => onToolChange('pen')}
-        >
-          ✏️ Lápiz
-        </button>
-        <button
-          className={`tool-btn ${tool === 'highlighter' ? 'active' : ''}`}
-          onClick={() => onToolChange('highlighter')}
-        >
-          🖍️ Resaltador
-        </button>
-        <button
           className={`tool-btn ${tool === 'eraser' ? 'active' : ''}`}
-          onClick={() => onToolChange('eraser')}
+          onClick={() => {
+            onToolChange('eraser')
+            setPenMenuOpen(false)
+            setStylePopoverOpen(false)
+          }}
         >
           🧽 Borrador
         </button>
+        <button
+          className={`tool-btn ${tool === 'select' ? 'active' : ''}`}
+          onClick={() => {
+            onToolChange('select')
+            setPenMenuOpen(false)
+            setStylePopoverOpen(false)
+          }}
+        >
+          👆 Seleccionar
+        </button>
       </div>
 
-      {tool !== 'eraser' && (
-        <div className="group">
-          {COLORS.map((c) => (
-            <button
-              key={c}
-              className={`swatch ${color === c ? 'active' : ''}`}
-              style={{ background: c }}
-              onClick={() => onColorChange(c)}
-              aria-label={`Color ${c}`}
-            />
-          ))}
-        </div>
-      )}
-
       <div className="group">
-        {WIDTHS.map((w) => (
-          <button
-            key={w}
-            className={`width-btn ${width === w ? 'active' : ''}`}
-            onClick={() => onWidthChange(w)}
-            aria-label={`Grosor ${w}`}
-          >
-            <span className="dot" style={{ width: w + 4, height: w + 4 }} />
-          </button>
-        ))}
+        <button className="tool-btn" onClick={onOpenText}>
+          🅰️ Texto
+        </button>
+        <button className="tool-btn" onClick={onOpenStickers}>
+          😊 Stickers
+        </button>
       </div>
 
       <div className="group">
