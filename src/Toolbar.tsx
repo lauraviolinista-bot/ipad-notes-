@@ -29,6 +29,11 @@ interface ToolbarProps {
   onBack: () => void
   onOpenText: () => void
   onPickSticker: (emoji: string) => void
+  onImportImage: (file: File) => void
+  onImportPdf: (file: File) => void
+  importBusy: string | null
+  onIndexNotebook: () => void
+  indexingStatus: string | null
 }
 
 export default function Toolbar({
@@ -52,15 +57,24 @@ export default function Toolbar({
   onBack,
   onOpenText,
   onPickSticker,
+  onImportImage,
+  onImportPdf,
+  importBusy,
+  onIndexNotebook,
+  indexingStatus,
 }: ToolbarProps) {
   const [brushLibraryOpen, setBrushLibraryOpen] = useState(false)
   const [stylePopoverOpen, setStylePopoverOpen] = useState(false)
   const [stickerPopoverOpen, setStickerPopoverOpen] = useState(false)
   const [shapePopoverOpen, setShapePopoverOpen] = useState(false)
+  const [importPopoverOpen, setImportPopoverOpen] = useState(false)
   const penButtonRef = useRef<HTMLButtonElement>(null)
   const styleButtonRef = useRef<HTMLButtonElement>(null)
   const stickerButtonRef = useRef<HTMLButtonElement>(null)
   const shapeButtonRef = useRef<HTMLButtonElement>(null)
+  const importButtonRef = useRef<HTMLButtonElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+  const pdfInputRef = useRef<HTMLInputElement>(null)
 
   const isPenTool = tool !== 'eraser' && tool !== 'select' && tool !== 'shape'
   const isShapeTool = tool === 'shape'
@@ -99,6 +113,14 @@ export default function Toolbar({
         </button>
         <button className="icon-btn" onClick={onRedo} disabled={!canRedo} aria-label="Rehacer">
           ↪︎
+        </button>
+        <button
+          className="icon-btn"
+          onClick={onIndexNotebook}
+          disabled={indexingStatus !== null}
+          title="Indexar el cuaderno para poder buscar el texto manuscrito"
+        >
+          {indexingStatus ?? '🔤 Indexar'}
         </button>
         <button className="icon-btn primary" onClick={onAddPage}>
           + Página
@@ -184,6 +206,15 @@ export default function Toolbar({
           <span className="dock-icon">😊</span>
           <span className="dock-label">Stickers</span>
         </button>
+        <button
+          ref={importButtonRef}
+          className="dock-btn"
+          onClick={() => setImportPopoverOpen((v) => !v)}
+          disabled={importBusy !== null}
+        >
+          <span className="dock-icon">{importBusy ? '⏳' : '🖼️'}</span>
+          <span className="dock-label">{importBusy ?? 'Fondo'}</span>
+        </button>
       </div>
 
       {stickerPopoverOpen && (
@@ -209,6 +240,54 @@ export default function Toolbar({
           />
         </Popover>
       )}
+
+      {importPopoverOpen && (
+        <Popover anchorRef={importButtonRef} onClose={() => setImportPopoverOpen(false)}>
+          <div className="import-menu">
+            <span className="color-section-label">Fondo de página</span>
+            <button
+              className="import-menu-item"
+              onClick={() => {
+                imageInputRef.current?.click()
+                setImportPopoverOpen(false)
+              }}
+            >
+              🖼️ Imagen como fondo
+            </button>
+            <button
+              className="import-menu-item"
+              onClick={() => {
+                pdfInputRef.current?.click()
+                setImportPopoverOpen(false)
+              }}
+            >
+              📄 Importar PDF (una página por hoja)
+            </button>
+          </div>
+        </Popover>
+      )}
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (file) onImportImage(file)
+          e.target.value = ''
+        }}
+      />
+      <input
+        ref={pdfInputRef}
+        type="file"
+        accept="application/pdf"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (file) onImportPdf(file)
+          e.target.value = ''
+        }}
+      />
 
       {brushLibraryOpen && (
         <BrushLibrary

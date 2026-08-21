@@ -5,16 +5,22 @@ interface LibraryProps {
   onOpen: (id: string) => void
   onCreate: () => void
   onDelete: (id: string) => void
+  onSearch: () => void
 }
 
-export default function Library({ notebooks, onOpen, onCreate, onDelete }: LibraryProps) {
+export default function Library({ notebooks, onOpen, onCreate, onDelete, onSearch }: LibraryProps) {
   return (
     <div className="library">
       <header className="library-header">
         <h1>Mis Cuadernos</h1>
-        <button className="icon-btn primary" onClick={onCreate}>
-          + Nuevo cuaderno
-        </button>
+        <div className="library-header-actions">
+          <button className="icon-btn" onClick={onSearch} aria-label="Buscar">
+            🔍 Buscar
+          </button>
+          <button className="icon-btn primary" onClick={onCreate}>
+            + Nuevo cuaderno
+          </button>
+        </div>
       </header>
       {notebooks.length === 0 ? (
         <p className="empty">Todavía no tienes cuadernos. Crea el primero.</p>

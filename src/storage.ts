@@ -15,6 +15,8 @@ export function loadNotebooks(): Notebook[] {
         ...p,
         elements: p.elements ?? [],
         template: p.template ?? 'blank',
+        background: p.background ?? null,
+        ocrText: p.ocrText ?? '',
       })),
     }))
   } catch {
@@ -34,8 +36,8 @@ export function newId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
 }
 
-export function emptyPage(template: PageTemplate = 'blank'): Page {
-  return { id: newId(), strokes: [], elements: [], template }
+export function emptyPage(template: PageTemplate = 'blank', background: string | null = null): Page {
+  return { id: newId(), strokes: [], elements: [], template, background, ocrText: '' }
 }
 
 export function emptyNotebook(name: string, cover: NotebookCover = COVER_PRESETS[0]): Notebook {

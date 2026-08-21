@@ -75,6 +75,8 @@ export interface Page {
   strokes: Stroke[]
   elements: PageElement[]
   template: PageTemplate
+  background: string | null // data URL — imported image or PDF page rendering
+  ocrText: string // cached handwriting/background recognition, used for search
 }
 
 export interface NotebookCover {
