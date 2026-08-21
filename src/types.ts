@@ -45,10 +45,19 @@ export interface StickerElement {
 
 export type PageElement = TextElement | StickerElement
 
+export type PageTemplate = 'blank' | 'lined' | 'grid' | 'dotted' | 'music' | 'planner'
+
 export interface Page {
   id: string
   strokes: Stroke[]
   elements: PageElement[]
+  template: PageTemplate
+}
+
+export interface NotebookCover {
+  background: string
+  accent: string
+  pattern: 'plain' | 'stripe' | 'bottom-bar'
 }
 
 export interface Notebook {
@@ -56,4 +65,5 @@ export interface Notebook {
   name: string
   pages: Page[]
   updatedAt: number
+  cover: NotebookCover
 }

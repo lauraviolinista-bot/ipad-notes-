@@ -4,7 +4,7 @@ import { getPenPreset } from './penTypes'
 
 interface CanvasProps {
   page: Page
-  tool: PenType | 'eraser'
+  tool: PenType | 'eraser' | null
   color: string
   width: number
   straight: boolean
@@ -149,6 +149,7 @@ export default function Canvas({
   }
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (tool === null) return
     if (e.pointerType === 'touch' && e.isPrimary === false) return
     onPointerDownCapture?.()
     canvasRef.current?.setPointerCapture(e.pointerId)
@@ -245,7 +246,8 @@ export default function Canvas({
   return (
     <canvas
       ref={canvasRef}
-      className="paper"
+      className="paper-canvas"
+      style={{ pointerEvents: tool === null ? 'none' : 'auto' }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}

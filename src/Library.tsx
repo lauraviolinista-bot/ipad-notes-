@@ -25,8 +25,24 @@ export default function Library({ notebooks, onOpen, onCreate, onDelete }: Libra
             .sort((a, b) => b.updatedAt - a.updatedAt)
             .map((nb) => (
               <div key={nb.id} className="notebook-card" onClick={() => onOpen(nb.id)}>
-                <div className="notebook-cover">
-                  <span>{nb.pages.length} pág.</span>
+                <div className="notebook-cover" style={{ background: nb.cover.background }}>
+                  {nb.cover.pattern === 'stripe' && (
+                    <span className="cover-stripe" style={{ background: nb.cover.accent }} />
+                  )}
+                  {nb.cover.pattern === 'bottom-bar' && (
+                    <span className="cover-bottom-bar" style={{ background: nb.cover.accent }} />
+                  )}
+                  <span
+                    className="notebook-page-count"
+                    style={{
+                      color:
+                        nb.cover.background === '#1c1c1e'
+                          ? 'rgba(255,255,255,0.7)'
+                          : 'rgba(0,0,0,0.45)',
+                    }}
+                  >
+                    {nb.pages.length} pág.
+                  </span>
                 </div>
                 <div className="notebook-meta">
                   <span className="notebook-name">{nb.name}</span>

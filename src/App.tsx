@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Notebook, PageElement, PenType, Stroke, TextElement, Tool } from './types'
+import type {
+  Notebook,
+  NotebookCover,
+  PageElement,
+  PageTemplate,
+  PenType,
+  Stroke,
+  TextElement,
+  Tool,
+} from './types'
 import { emptyNotebook, emptyPage, loadNotebooks, newId, saveNotebooks } from './storage'
 import Toolbar from './Toolbar'
 import Canvas from './Canvas'
@@ -7,6 +16,9 @@ import PageStrip from './PageStrip'
 import Library from './Library'
 import PageElements, { TEXT_STYLE_PRESETS } from './PageElements'
 import StickerPicker from './StickerPicker'
+import NewNotebookModal from './NewNotebookModal'
+import TemplatePicker from './TemplatePicker'
+import { templateBackgroundStyle } from './pageTemplates'
 import './App.css'
 
 const MAX_RECENT_COLORS = 6
@@ -22,6 +34,8 @@ export default function App() {
   const [recentColors, setRecentColors] = useState<string[]>([])
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null)
   const [stickerPickerOpen, setStickerPickerOpen] = useState(false)
+  const [newNotebookOpen, setNewNotebookOpen] = useState(false)
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false)
 
   const historyRef = useRef<Notebook[][]>([])
   const futureRef = useRef<Notebook[][]>([])
@@ -132,10 +146,11 @@ export default function App() {
     setTool('select')
   }
 
-  const handleAddPage = () => {
+  const handleAddPage = (template: PageTemplate) => {
     const nextIndex = activeNotebook?.pages.length ?? 0
-    updateActiveNotebook((nb) => ({ ...nb, pages: [...nb.pages, emptyPage()] }))
+    updateActiveNotebook((nb) => ({ ...nb, pages: [...nb.pages, emptyPage(template)] }))
     setActivePageIndex(nextIndex)
+    setTemplatePickerOpen(false)
   }
 
   const handleDeletePage = (index: number) => {
@@ -160,12 +175,12 @@ export default function App() {
     setNotebooks(next)
   }
 
-  const handleCreateNotebook = () => {
-    const name = `Cuaderno ${notebooks.length + 1}`
-    const nb = emptyNotebook(name)
+  const handleCreateNotebook = (name: string, cover: NotebookCover) => {
+    const nb = emptyNotebook(name, cover)
     commit((prev) => [...prev, nb])
     setActiveNotebookId(nb.id)
     setActivePageIndex(0)
+    setNewNotebookOpen(false)
   }
 
   const handleDeleteNotebook = (id: string) => {
@@ -174,15 +189,23 @@ export default function App() {
 
   if (!activeNotebook || !activePage) {
     return (
-      <Library
-        notebooks={notebooks}
-        onOpen={(id) => {
-          setActiveNotebookId(id)
-          setActivePageIndex(0)
-        }}
-        onCreate={handleCreateNotebook}
-        onDelete={handleDeleteNotebook}
-      />
+      <>
+        <Library
+          notebooks={notebooks}
+          onOpen={(id) => {
+            setActiveNotebookId(id)
+            setActivePageIndex(0)
+          }}
+          onCreate={() => setNewNotebookOpen(true)}
+          onDelete={handleDeleteNotebook}
+        />
+        {newNotebookOpen && (
+          <NewNotebookModal
+            onCreate={handleCreateNotebook}
+            onClose={() => setNewNotebookOpen(false)}
+          />
+        )}
+      </>
     )
   }
 
@@ -203,7 +226,7 @@ export default function App() {
         onStraightToggle={() => setStraight((v) => !v)}
         onUndo={handleUndo}
         onRedo={handleRedo}
-        onAddPage={handleAddPage}
+        onAddPage={() => setTemplatePickerOpen(true)}
         onBack={() => setActiveNotebookId(null)}
         onOpenText={handleAddText}
         onOpenStickers={() => setStickerPickerOpen((v) => !v)}
@@ -211,28 +234,29 @@ export default function App() {
       {stickerPickerOpen && (
         <StickerPicker onPick={handleAddSticker} onClose={() => setStickerPickerOpen(false)} />
       )}
+      {templatePickerOpen && (
+        <TemplatePicker onPick={handleAddPage} onClose={() => setTemplatePickerOpen(false)} />
+      )}
       <div className="canvas-wrap" onPointerDown={() => setSelectedElementId(null)}>
-        {tool !== 'select' ? (
+        <div className="paper" style={templateBackgroundStyle(activePage.template)}>
           <Canvas
             key={activePage.id}
             page={activePage}
-            tool={tool as PenType | 'eraser'}
+            tool={tool === 'select' ? null : (tool as PenType | 'eraser')}
             color={color}
             width={width}
             straight={straight}
             onStrokeEnd={handleStrokeEnd}
             onErase={handleErase}
           />
-        ) : (
-          <div className="paper" />
-        )}
-        <PageElements
-          elements={activePage.elements}
-          selectedId={selectedElementId}
-          onSelect={setSelectedElementId}
-          onChange={handleElementChange}
-          onDelete={handleElementDelete}
-        />
+          <PageElements
+            elements={activePage.elements}
+            selectedId={selectedElementId}
+            onSelect={setSelectedElementId}
+            onChange={handleElementChange}
+            onDelete={handleElementDelete}
+          />
+        </div>
       </div>
       <PageStrip
         pages={activeNotebook.pages}
