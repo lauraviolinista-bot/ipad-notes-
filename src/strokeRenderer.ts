@@ -1,9 +1,43 @@
-import type { Stroke } from './types'
+import type { Stroke, StrokePoint } from './types'
 import { getPenPreset } from './penTypes'
 
 function seededJitter(seed: number) {
   const x = Math.sin(seed * 12.9898) * 43758.5453
   return x - Math.floor(x)
+}
+
+// Catmull-Rom spline interpolation: turns the raw, slightly jittery pointer
+// samples into a smooth curve, closer to how the Apple Pencil ink looks in
+// GoodNotes/Notes rather than a jagged polyline of raw touch points.
+function smoothPoints(points: StrokePoint[], subdivisions = 4): StrokePoint[] {
+  if (points.length < 3) return points
+  const result: StrokePoint[] = [points[0]]
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i - 1] ?? points[i]
+    const p1 = points[i]
+    const p2 = points[i + 1]
+    const p3 = points[i + 2] ?? p2
+    for (let t = 1; t <= subdivisions; t++) {
+      const s = t / subdivisions
+      const s2 = s * s
+      const s3 = s2 * s
+      const x =
+        0.5 *
+        (2 * p1.x +
+          (-p0.x + p2.x) * s +
+          (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * s2 +
+          (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * s3)
+      const y =
+        0.5 *
+        (2 * p1.y +
+          (-p0.y + p2.y) * s +
+          (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * s2 +
+          (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * s3)
+      const pressure = p1.pressure + (p2.pressure - p1.pressure) * s
+      result.push({ x, y, pressure })
+    }
+  }
+  return result
 }
 
 function drawTextured(ctx: CanvasRenderingContext2D, stroke: Stroke, coarse: boolean) {
@@ -219,25 +253,31 @@ export function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke) {
   ctx.strokeStyle = stroke.color
   ctx.globalAlpha = stroke.opacity
 
+  const needsSmoothing =
+    preset.render === 'smooth' || preset.render === 'calligraphy' || preset.render === 'marker'
+  const renderStroke = needsSmoothing
+    ? { ...stroke, points: smoothPoints(stroke.points) }
+    : stroke
+
   switch (preset.render) {
     case 'textured':
-      drawTextured(ctx, stroke, stroke.tool === 'charcoal')
+      drawTextured(ctx, renderStroke, stroke.tool === 'charcoal')
       break
     case 'marker':
-      drawMarker(ctx, stroke)
+      drawMarker(ctx, renderStroke)
       break
     case 'calligraphy':
-      drawCalligraphy(ctx, stroke)
+      drawCalligraphy(ctx, renderStroke)
       break
     case 'watercolor':
-      drawWatercolor(ctx, stroke)
+      drawWatercolor(ctx, renderStroke)
       break
     case 'pattern':
-      drawPattern(ctx, stroke, preset.pattern ?? 'crosshatch')
+      drawPattern(ctx, renderStroke, preset.pattern ?? 'crosshatch')
       break
     case 'smooth':
     default:
-      drawSmooth(ctx, stroke, preset.pressureSensitive)
+      drawSmooth(ctx, renderStroke, preset.pressureSensitive)
       break
   }
 

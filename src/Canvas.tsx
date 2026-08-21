@@ -60,6 +60,12 @@ export default function Canvas({
   const currentStrokeRef = useRef<Stroke | null>(null)
   const startPointRef = useRef<StrokePoint | null>(null)
   const erasedRef = useRef<Set<string>>(new Set())
+  const activePointerIdRef = useRef<number | null>(null)
+  // Timestamp of the last Apple Pencil ("pen") contact — used to reject palm
+  // touches: a resting palm reads as pointerType "touch" and would otherwise
+  // draw stray marks while writing.
+  const lastPenActivityRef = useRef(0)
+  const PALM_REJECTION_WINDOW_MS = 750
 
   const redrawBackground = () => {
     const canvas = bgRef.current
@@ -114,9 +120,19 @@ export default function Canvas({
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (tool === null) return
+    if (drawingRef.current) return // ignore extra fingers/palm while already drawing
     if (e.pointerType === 'touch' && e.isPrimary === false) return
+
+    if (e.pointerType === 'pen') {
+      lastPenActivityRef.current = Date.now()
+    } else if (e.pointerType === 'touch') {
+      const sincePen = Date.now() - lastPenActivityRef.current
+      if (sincePen < PALM_REJECTION_WINDOW_MS) return // likely a resting palm
+    }
+
     onPointerDownCapture?.()
     overlayRef.current?.setPointerCapture(e.pointerId)
+    activePointerIdRef.current = e.pointerId
     drawingRef.current = true
 
     if (tool === 'eraser') {
@@ -163,6 +179,8 @@ export default function Canvas({
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!drawingRef.current) return
+    if (e.pointerId !== activePointerIdRef.current) return
+    if (e.pointerType === 'pen') lastPenActivityRef.current = Date.now()
 
     if (tool === 'eraser') {
       const events = e.nativeEvent.getCoalescedEvents?.() ?? [e.nativeEvent]
@@ -182,9 +200,11 @@ export default function Canvas({
     redrawOverlay()
   }
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!drawingRef.current) return
+    if (e.pointerId !== activePointerIdRef.current) return
     drawingRef.current = false
+    activePointerIdRef.current = null
 
     if (tool === 'eraser') {
       if (erasedRef.current.size > 0) {
