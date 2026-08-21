@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import type { PenType, Tool } from './types'
-import { PEN_PRESETS, getPenPreset } from './penTypes'
+import { getPenPreset } from './penTypes'
 import ColorPicker from './ColorPicker'
+import BrushLibrary from './BrushLibrary'
 
 interface ToolbarProps {
   notebookName: string
@@ -44,7 +45,7 @@ export default function Toolbar({
   onOpenText,
   onOpenStickers,
 }: ToolbarProps) {
-  const [penMenuOpen, setPenMenuOpen] = useState(false)
+  const [brushLibraryOpen, setBrushLibraryOpen] = useState(false)
   const [stylePopoverOpen, setStylePopoverOpen] = useState(false)
 
   const isPenTool = tool !== 'eraser' && tool !== 'select'
@@ -54,7 +55,6 @@ export default function Toolbar({
     onToolChange(id)
     const preset = getPenPreset(id)
     onWidthChange(preset.defaultWidth)
-    setPenMenuOpen(false)
     setStylePopoverOpen(true)
   }
 
@@ -69,32 +69,26 @@ export default function Toolbar({
         <button
           className={`tool-btn ${isPenTool ? 'active' : ''}`}
           onClick={() => {
-            setPenMenuOpen((v) => !v)
+            setBrushLibraryOpen(true)
             setStylePopoverOpen(false)
           }}
         >
           {activePreset ? `${activePreset.icon} ${activePreset.label}` : '✏️ Pluma'}
         </button>
-        {penMenuOpen && (
-          <div className="pen-menu">
-            {PEN_PRESETS.map((p) => (
-              <button
-                key={p.id}
-                className={`pen-menu-item ${tool === p.id ? 'active' : ''}`}
-                onClick={() => selectPen(p.id)}
-              >
-                <span className="pen-icon">{p.icon}</span>
-                <span>{p.label}</span>
-              </button>
-            ))}
-          </div>
+        {brushLibraryOpen && (
+          <BrushLibrary
+            tool={isPenTool ? (tool as PenType) : 'pencil'}
+            color={color}
+            onSelect={selectPen}
+            onClose={() => setBrushLibraryOpen(false)}
+          />
         )}
         {isPenTool && (
           <button
             className="icon-btn style-toggle"
             onClick={() => {
               setStylePopoverOpen((v) => !v)
-              setPenMenuOpen(false)
+              setBrushLibraryOpen(false)
             }}
             aria-label="Color y grosor"
           >
@@ -131,7 +125,7 @@ export default function Toolbar({
           className={`tool-btn ${tool === 'eraser' ? 'active' : ''}`}
           onClick={() => {
             onToolChange('eraser')
-            setPenMenuOpen(false)
+            setBrushLibraryOpen(false)
             setStylePopoverOpen(false)
           }}
         >
@@ -141,7 +135,7 @@ export default function Toolbar({
           className={`tool-btn ${tool === 'select' ? 'active' : ''}`}
           onClick={() => {
             onToolChange('select')
-            setPenMenuOpen(false)
+            setBrushLibraryOpen(false)
             setStylePopoverOpen(false)
           }}
         >
