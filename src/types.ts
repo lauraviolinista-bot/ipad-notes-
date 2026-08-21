@@ -58,7 +58,16 @@ export interface StickerElement {
 
 export type PageElement = TextElement | StickerElement
 
-export type PageTemplate = 'blank' | 'lined' | 'grid' | 'dotted' | 'music' | 'planner'
+export type PageTemplate =
+  | 'blank'
+  | 'lined'
+  | 'grid'
+  | 'dotted'
+  | 'music'
+  | 'planner'
+  | 'todo'
+  | 'cornell'
+  | 'calendar'
 
 export interface Page {
   id: string

@@ -15,7 +15,6 @@ import Canvas from './Canvas'
 import PageStrip from './PageStrip'
 import Library from './Library'
 import PageElements, { TEXT_STYLE_PRESETS } from './PageElements'
-import StickerPicker from './StickerPicker'
 import NewNotebookModal from './NewNotebookModal'
 import TemplatePicker from './TemplatePicker'
 import { templateBackgroundStyle } from './pageTemplates'
@@ -33,7 +32,6 @@ export default function App() {
   const [straight, setStraight] = useState(false)
   const [recentColors, setRecentColors] = useState<string[]>([])
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null)
-  const [stickerPickerOpen, setStickerPickerOpen] = useState(false)
   const [newNotebookOpen, setNewNotebookOpen] = useState(false)
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false)
 
@@ -142,7 +140,6 @@ export default function App() {
         i === activePageIndex ? { ...p, elements: [...p.elements, el] } : p,
       ),
     }))
-    setStickerPickerOpen(false)
     setTool('select')
   }
 
@@ -229,11 +226,8 @@ export default function App() {
         onAddPage={() => setTemplatePickerOpen(true)}
         onBack={() => setActiveNotebookId(null)}
         onOpenText={handleAddText}
-        onOpenStickers={() => setStickerPickerOpen((v) => !v)}
+        onPickSticker={handleAddSticker}
       />
-      {stickerPickerOpen && (
-        <StickerPicker onPick={handleAddSticker} onClose={() => setStickerPickerOpen(false)} />
-      )}
       {templatePickerOpen && (
         <TemplatePicker onPick={handleAddPage} onClose={() => setTemplatePickerOpen(false)} />
       )}

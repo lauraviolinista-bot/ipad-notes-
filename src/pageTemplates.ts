@@ -14,6 +14,9 @@ export const PAGE_TEMPLATES: TemplatePreset[] = [
   { id: 'dotted', label: 'Punteado', icon: '⠿' },
   { id: 'music', label: 'Partitura', icon: '♪' },
   { id: 'planner', label: 'Planificador', icon: '🗓️' },
+  { id: 'todo', label: 'Lista de tareas', icon: '☑️' },
+  { id: 'cornell', label: 'Notas Cornell', icon: '📝' },
+  { id: 'calendar', label: 'Calendario mensual', icon: '📆' },
 ]
 
 const LINE_COLOR = 'rgba(60,60,70,0.16)'
@@ -63,6 +66,33 @@ export function templateBackgroundStyle(template: PageTemplate): CSSProperties {
           linear-gradient(to right, ${LINE_COLOR} 0 2px, transparent 2px),
           repeating-linear-gradient(to bottom, transparent 0 39px, ${LINE_COLOR} 39px 40px)`,
         backgroundPosition: '90px 60px, 0 60px',
+      }
+    case 'todo':
+      return {
+        backgroundImage: `
+          linear-gradient(to right, transparent 0 34px, ${LINE_COLOR} 34px 36px, transparent 36px),
+          radial-gradient(${DOT_COLOR} 1px, transparent 1.4px)`,
+        backgroundSize: '100% 100%, 480px 32px',
+        backgroundPosition: '0 0, 18px 14px',
+      }
+    case 'cornell':
+      return {
+        backgroundImage: `
+          linear-gradient(to bottom, transparent 0 78%, ${LINE_COLOR} 78% calc(78% + 2px), transparent calc(78% + 2px) 100%),
+          linear-gradient(to right, transparent 0 28%, ${LINE_COLOR} 28% calc(28% + 2px), transparent calc(28% + 2px) 100%),
+          repeating-linear-gradient(to bottom, transparent 0 27px, ${LINE_COLOR} 27px 28px)`,
+        backgroundSize: '100% 100%, 100% 78%, 100% 78%',
+        backgroundPosition: '0 0, 0 0, 0 12px',
+        backgroundRepeat: 'no-repeat, no-repeat, repeat-y',
+      }
+    case 'calendar':
+      return {
+        backgroundImage: `
+          repeating-linear-gradient(to right, transparent 0 calc(14.28% - 1px), ${LINE_COLOR} calc(14.28% - 1px) 14.28%),
+          repeating-linear-gradient(to bottom, transparent 0 calc(20% - 1px), ${LINE_COLOR} calc(20% - 1px) 20%)`,
+        backgroundPosition: '0 40px, 0 40px',
+        backgroundSize: '100% calc(100% - 40px), 100% calc(100% - 40px)',
+        backgroundRepeat: 'no-repeat',
       }
     case 'blank':
     default:

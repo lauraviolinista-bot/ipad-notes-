@@ -24,7 +24,7 @@ interface StickerPickerProps {
 
 export default function StickerPicker({ onPick, onClose }: StickerPickerProps) {
   return (
-    <div className="sticker-picker">
+    <div className="sticker-picker-content">
       <div className="sticker-picker-header">
         <span>Stickers</span>
         <button onClick={onClose} aria-label="Cerrar">

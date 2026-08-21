@@ -25,6 +25,23 @@ function distToSegment(p: StrokePoint, a: StrokePoint, b: StrokePoint) {
   return Math.hypot(p.x - projX, p.y - projY)
 }
 
+function resizeCanvasToParent(canvas: HTMLCanvasElement) {
+  const parent = canvas.parentElement
+  if (!parent) return
+  const rect = parent.getBoundingClientRect()
+  const dpr = window.devicePixelRatio || 1
+  const w = Math.max(1, Math.round(rect.width))
+  const h = Math.max(1, Math.round(rect.height))
+  if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+    canvas.width = w * dpr
+    canvas.height = h * dpr
+    canvas.style.width = `${w}px`
+    canvas.style.height = `${h}px`
+  }
+  const ctx = canvas.getContext('2d')
+  ctx?.setTransform(dpr, 0, 0, dpr, 0, 0)
+}
+
 export default function Canvas({
   page,
   tool,
@@ -35,46 +52,49 @@ export default function Canvas({
   onErase,
   onPointerDownCapture,
 }: CanvasProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  // Background canvas holds committed strokes — redrawn only when they change.
+  const bgRef = useRef<HTMLCanvasElement>(null)
+  // Overlay canvas holds only the in-progress stroke — cheap to redraw every move.
+  const overlayRef = useRef<HTMLCanvasElement>(null)
   const drawingRef = useRef(false)
   const currentStrokeRef = useRef<Stroke | null>(null)
   const startPointRef = useRef<StrokePoint | null>(null)
   const erasedRef = useRef<Set<string>>(new Set())
 
-  const redraw = () => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+  const redrawBackground = () => {
+    const canvas = bgRef.current
+    const ctx = canvas?.getContext('2d')
+    if (!canvas || !ctx) return
     const dpr = window.devicePixelRatio || 1
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr)
     for (const stroke of page.strokes) {
-      drawStroke(ctx, stroke)
+      if (!erasedRef.current.has(stroke.id)) drawStroke(ctx, stroke)
     }
+  }
+
+  const redrawOverlay = () => {
+    const canvas = overlayRef.current
+    const ctx = canvas?.getContext('2d')
+    if (!canvas || !ctx) return
+    const dpr = window.devicePixelRatio || 1
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr)
     if (currentStrokeRef.current) {
       drawStroke(ctx, currentStrokeRef.current)
     }
   }
 
   useEffect(() => {
-    redraw()
+    erasedRef.current = new Set()
+    redrawBackground()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page])
 
   useEffect(() => {
     const handleResize = () => {
-      const canvas = canvasRef.current
-      const parent = canvas?.parentElement
-      if (!canvas || !parent) return
-      const rect = parent.getBoundingClientRect()
-      const dpr = window.devicePixelRatio || 1
-      canvas.width = rect.width * dpr
-      canvas.height = rect.height * dpr
-      canvas.style.width = `${rect.width}px`
-      canvas.style.height = `${rect.height}px`
-      const ctx = canvas.getContext('2d')
-      ctx?.setTransform(dpr, 0, 0, dpr, 0, 0)
-      redraw()
+      if (bgRef.current) resizeCanvasToParent(bgRef.current)
+      if (overlayRef.current) resizeCanvasToParent(overlayRef.current)
+      redrawBackground()
+      redrawOverlay()
     }
     handleResize()
     window.addEventListener('resize', handleResize)
@@ -82,8 +102,8 @@ export default function Canvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const getPoint = (e: React.PointerEvent<HTMLCanvasElement>): StrokePoint => {
-    const canvas = canvasRef.current!
+  const getPoint = (e: React.PointerEvent<HTMLCanvasElement> | PointerEvent): StrokePoint => {
+    const canvas = overlayRef.current!
     const rect = canvas.getBoundingClientRect()
     return {
       x: e.clientX - rect.left,
@@ -96,7 +116,7 @@ export default function Canvas({
     if (tool === null) return
     if (e.pointerType === 'touch' && e.isPrimary === false) return
     onPointerDownCapture?.()
-    canvasRef.current?.setPointerCapture(e.pointerId)
+    overlayRef.current?.setPointerCapture(e.pointerId)
     drawingRef.current = true
 
     if (tool === 'eraser') {
@@ -122,6 +142,7 @@ export default function Canvas({
 
   const eraseAt = (point: StrokePoint) => {
     const radius = 14
+    let changed = false
     for (const stroke of page.strokes) {
       if (erasedRef.current.has(stroke.id)) continue
       for (let i = 0; i < stroke.points.length; i++) {
@@ -132,39 +153,33 @@ export default function Canvas({
           : Math.hypot(point.x - p.x, point.y - p.y) < radius
         if (hit) {
           erasedRef.current.add(stroke.id)
+          changed = true
           break
         }
       }
     }
-    const canvas = canvasRef.current
-    const ctx = canvas?.getContext('2d')
-    const dpr = window.devicePixelRatio || 1
-    if (canvas && ctx) {
-      ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr)
-      for (const stroke of page.strokes) {
-        if (!erasedRef.current.has(stroke.id)) drawStroke(ctx, stroke)
-      }
-    }
+    if (changed) redrawBackground()
   }
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!drawingRef.current) return
 
     if (tool === 'eraser') {
-      eraseAt(getPoint(e))
+      const events = e.nativeEvent.getCoalescedEvents?.() ?? [e.nativeEvent]
+      for (const ev of events) eraseAt(getPoint(ev))
       return
     }
 
     const stroke = currentStrokeRef.current
     if (!stroke) return
-    const point = getPoint(e)
 
     if (stroke.straight && startPointRef.current) {
-      stroke.points = [startPointRef.current, point]
+      stroke.points = [startPointRef.current, getPoint(e)]
     } else {
-      stroke.points.push(point)
+      const events = e.nativeEvent.getCoalescedEvents?.() ?? [e.nativeEvent]
+      for (const ev of events) stroke.points.push(getPoint(ev))
     }
-    redraw()
+    redrawOverlay()
   }
 
   const handlePointerUp = () => {
@@ -182,21 +197,25 @@ export default function Canvas({
     const stroke = currentStrokeRef.current
     currentStrokeRef.current = null
     startPointRef.current = null
+    redrawOverlay()
     if (stroke && stroke.points.length > 0) {
       onStrokeEnd(stroke)
     }
   }
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="paper-canvas"
-      style={{ pointerEvents: tool === null ? 'none' : 'auto' }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-    />
+    <>
+      <canvas ref={bgRef} className="paper-canvas paper-canvas-bg" />
+      <canvas
+        ref={overlayRef}
+        className="paper-canvas paper-canvas-overlay"
+        style={{ pointerEvents: tool === null ? 'none' : 'auto' }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      />
+    </>
   )
 }
