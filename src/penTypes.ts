@@ -1,7 +1,8 @@
 import type { PenType } from './types'
 
-export type RenderStyle = 'smooth' | 'textured' | 'calligraphy' | 'watercolor' | 'marker'
-export type PenCategory = 'boceto' | 'tinta' | 'pintura' | 'destacado'
+export type RenderStyle = 'smooth' | 'textured' | 'calligraphy' | 'watercolor' | 'marker' | 'pattern'
+export type PatternKind = 'crosshatch' | 'stipple' | 'grid' | 'brick'
+export type PenCategory = 'boceto' | 'tinta' | 'pintura' | 'textura' | 'destacado'
 
 export interface PenPreset {
   id: PenType
@@ -15,6 +16,7 @@ export interface PenPreset {
   opacity: number
   pressureSensitive: boolean
   render: RenderStyle
+  pattern?: PatternKind
   supportsStraightLine: boolean
 }
 
@@ -22,6 +24,7 @@ export const PEN_CATEGORIES: { id: PenCategory; label: string }[] = [
   { id: 'boceto', label: 'Boceto' },
   { id: 'tinta', label: 'Tinta' },
   { id: 'pintura', label: 'Pintura' },
+  { id: 'textura', label: 'Textura' },
   { id: 'destacado', label: 'Destacado' },
 ]
 
@@ -137,6 +140,66 @@ export const PEN_PRESETS: PenPreset[] = [
     pressureSensitive: false,
     render: 'marker',
     supportsStraightLine: true,
+  },
+  {
+    id: 'crosshatch',
+    label: 'Rayado cruzado',
+    description: 'Estampa líneas cruzadas a lo largo del trazo, para sombreado.',
+    icon: '⛌',
+    category: 'textura',
+    minWidth: 10,
+    maxWidth: 34,
+    defaultWidth: 18,
+    opacity: 0.8,
+    pressureSensitive: true,
+    render: 'pattern',
+    pattern: 'crosshatch',
+    supportsStraightLine: false,
+  },
+  {
+    id: 'stipple',
+    label: 'Punteado',
+    description: 'Nube de puntos irregulares, ideal para texturas y grano.',
+    icon: '⠿',
+    category: 'textura',
+    minWidth: 10,
+    maxWidth: 40,
+    defaultWidth: 20,
+    opacity: 0.85,
+    pressureSensitive: true,
+    render: 'pattern',
+    pattern: 'stipple',
+    supportsStraightLine: false,
+  },
+  {
+    id: 'gridTexture',
+    label: 'Cuadrícula',
+    description: 'Estampa una retícula fina a lo largo del trazo.',
+    icon: '▦',
+    category: 'textura',
+    minWidth: 12,
+    maxWidth: 36,
+    defaultWidth: 20,
+    opacity: 0.8,
+    pressureSensitive: false,
+    render: 'pattern',
+    pattern: 'grid',
+    supportsStraightLine: false,
+  },
+  {
+    id: 'brick',
+    label: 'Mosaico',
+    description: 'Bloques rectangulares alternados tipo ladrillo.',
+    icon: '🧱',
+    category: 'textura',
+    minWidth: 12,
+    maxWidth: 36,
+    defaultWidth: 20,
+    opacity: 0.85,
+    pressureSensitive: false,
+    render: 'pattern',
+    pattern: 'brick',
+    supportsStraightLine: false,
   },
   {
     id: 'highlighter',

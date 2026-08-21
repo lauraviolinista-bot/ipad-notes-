@@ -8,6 +8,10 @@ export type PenType =
   | 'calligraphy'
   | 'watercolor'
   | 'charcoal'
+  | 'crosshatch'
+  | 'stipple'
+  | 'gridTexture'
+  | 'brick'
 export type Tool = PenType | 'eraser' | 'select'
 
 export interface StrokePoint {

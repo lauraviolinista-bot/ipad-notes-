@@ -86,6 +86,120 @@ function drawWatercolor(ctx: CanvasRenderingContext2D, stroke: Stroke) {
   }
 }
 
+interface Stamp {
+  x: number
+  y: number
+  angle: number
+  pressure: number
+}
+
+function walkStamps(stroke: Stroke, spacing: number): Stamp[] {
+  const stamps: Stamp[] = []
+  let carry = 0
+  for (let i = 1; i < stroke.points.length; i++) {
+    const a = stroke.points[i - 1]
+    const b = stroke.points[i]
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const segLen = Math.hypot(dx, dy)
+    if (segLen === 0) continue
+    const angle = Math.atan2(dy, dx)
+    let dist = spacing - carry
+    while (dist < segLen) {
+      const t = dist / segLen
+      stamps.push({
+        x: a.x + dx * t,
+        y: a.y + dy * t,
+        angle,
+        pressure: a.pressure + (b.pressure - a.pressure) * t,
+      })
+      dist += spacing
+    }
+    carry = segLen - (dist - spacing)
+  }
+  return stamps
+}
+
+function drawPattern(
+  ctx: CanvasRenderingContext2D,
+  stroke: Stroke,
+  kind: 'crosshatch' | 'stipple' | 'grid' | 'brick',
+) {
+  const w = stroke.width
+  const spacing = kind === 'stipple' ? w * 0.4 : w * 0.7
+  const stamps = walkStamps(stroke, spacing)
+  ctx.lineCap = 'butt'
+
+  stamps.forEach((s, i) => {
+    const localW = Math.max(4, w * (0.6 + s.pressure * 0.6))
+    const perpX = -Math.sin(s.angle)
+    const perpY = Math.cos(s.angle)
+
+    if (kind === 'crosshatch') {
+      const off = (seededJitter(i * 5.4) - 0.5) * localW
+      const cx = s.x + perpX * off
+      const cy = s.y + perpY * off
+      const r = localW * 0.35
+      ctx.globalAlpha = stroke.opacity * (0.6 + seededJitter(i * 2.1) * 0.4)
+      ctx.lineWidth = Math.max(0.6, w * 0.06)
+      for (const dir of [1, -1]) {
+        const a1 = s.angle + (Math.PI / 4) * dir
+        ctx.beginPath()
+        ctx.moveTo(cx - Math.cos(a1) * r, cy - Math.sin(a1) * r)
+        ctx.lineTo(cx + Math.cos(a1) * r, cy + Math.sin(a1) * r)
+        ctx.stroke()
+      }
+    } else if (kind === 'stipple') {
+      const dots = 2 + Math.floor(seededJitter(i * 1.7) * 3)
+      for (let d = 0; d < dots; d++) {
+        const off = (seededJitter(i * 3.3 + d * 9.1) - 0.5) * localW
+        const along = (seededJitter(i * 8.8 + d * 2.3) - 0.5) * spacing
+        const cx = s.x + perpX * off + Math.cos(s.angle) * along
+        const cy = s.y + perpY * off + Math.sin(s.angle) * along
+        ctx.globalAlpha = stroke.opacity * (0.5 + seededJitter(i + d) * 0.5)
+        ctx.beginPath()
+        ctx.arc(cx, cy, Math.max(0.6, w * 0.06), 0, Math.PI * 2)
+        ctx.fillStyle = stroke.color
+        ctx.fill()
+      }
+    } else if (kind === 'grid') {
+      const lanes = [-0.35, 0, 0.35]
+      const tangentX = Math.cos(s.angle)
+      const tangentY = Math.sin(s.angle)
+      const r = spacing * 0.42
+      ctx.lineWidth = Math.max(0.6, w * 0.05)
+      ctx.globalAlpha = stroke.opacity * 0.75
+      for (const lane of lanes) {
+        const off = lane * localW
+        const cx = s.x + perpX * off
+        const cy = s.y + perpY * off
+        ctx.beginPath()
+        ctx.moveTo(cx - tangentX * r, cy - tangentY * r)
+        ctx.lineTo(cx + tangentX * r, cy + tangentY * r)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(cx - perpX * localW * 0.3, cy - perpY * localW * 0.3)
+        ctx.lineTo(cx + perpX * localW * 0.3, cy + perpY * localW * 0.3)
+        ctx.stroke()
+      }
+    } else if (kind === 'brick') {
+      const parity = i % 2 === 0 ? -0.25 : 0.25
+      const off = parity * localW
+      const cx = s.x + perpX * off
+      const cy = s.y + perpY * off
+      const bw = spacing * 0.9
+      const bh = localW * 0.4
+      ctx.save()
+      ctx.translate(cx, cy)
+      ctx.rotate(s.angle)
+      ctx.globalAlpha = stroke.opacity * 0.85
+      ctx.fillStyle = stroke.color
+      ctx.fillRect(-bw / 2, -bh / 2, bw * 0.85, bh)
+      ctx.restore()
+    }
+  })
+}
+
 export function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke) {
   const preset = getPenPreset(stroke.tool)
   if (stroke.points.length < 2) {
@@ -117,6 +231,9 @@ export function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke) {
       break
     case 'watercolor':
       drawWatercolor(ctx, stroke)
+      break
+    case 'pattern':
+      drawPattern(ctx, stroke, preset.pattern ?? 'crosshatch')
       break
     case 'smooth':
     default:
