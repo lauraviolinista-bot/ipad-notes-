@@ -1,10 +1,12 @@
 import { useRef, useState } from 'react'
-import type { PenType, Tool } from './types'
+import type { PenType, ShapeKind, Tool } from './types'
 import { getPenPreset } from './penTypes'
+import { SHAPE_PRESETS, SHAPE_WIDTH_RANGE } from './shapes'
 import ColorPicker from './ColorPicker'
 import BrushLibrary from './BrushLibrary'
 import Popover from './Popover'
 import StickerPicker from './StickerPicker'
+import ShapePicker from './ShapePicker'
 
 interface ToolbarProps {
   notebookName: string
@@ -12,6 +14,7 @@ interface ToolbarProps {
   color: string
   width: number
   straight: boolean
+  shapeKind: ShapeKind
   recentColors: string[]
   canUndo: boolean
   canRedo: boolean
@@ -19,6 +22,7 @@ interface ToolbarProps {
   onColorChange: (c: string) => void
   onWidthChange: (w: number) => void
   onStraightToggle: () => void
+  onShapeKindChange: (k: ShapeKind) => void
   onUndo: () => void
   onRedo: () => void
   onAddPage: () => void
@@ -33,6 +37,7 @@ export default function Toolbar({
   color,
   width,
   straight,
+  shapeKind,
   recentColors,
   canUndo,
   canRedo,
@@ -40,6 +45,7 @@ export default function Toolbar({
   onColorChange,
   onWidthChange,
   onStraightToggle,
+  onShapeKindChange,
   onUndo,
   onRedo,
   onAddPage,
@@ -50,12 +56,22 @@ export default function Toolbar({
   const [brushLibraryOpen, setBrushLibraryOpen] = useState(false)
   const [stylePopoverOpen, setStylePopoverOpen] = useState(false)
   const [stickerPopoverOpen, setStickerPopoverOpen] = useState(false)
+  const [shapePopoverOpen, setShapePopoverOpen] = useState(false)
   const penButtonRef = useRef<HTMLButtonElement>(null)
   const styleButtonRef = useRef<HTMLButtonElement>(null)
   const stickerButtonRef = useRef<HTMLButtonElement>(null)
+  const shapeButtonRef = useRef<HTMLButtonElement>(null)
 
-  const isPenTool = tool !== 'eraser' && tool !== 'select'
+  const isPenTool = tool !== 'eraser' && tool !== 'select' && tool !== 'shape'
+  const isShapeTool = tool === 'shape'
+  const showsStyle = isPenTool || isShapeTool
   const activePreset = isPenTool ? getPenPreset(tool as PenType) : null
+  const activeShapePreset = SHAPE_PRESETS.find((s) => s.id === shapeKind)!
+  const widthRange = isShapeTool
+    ? SHAPE_WIDTH_RANGE
+    : activePreset
+      ? { min: activePreset.minWidth, max: activePreset.maxWidth }
+      : { min: 1, max: 20 }
 
   const selectPen = (id: PenType) => {
     onToolChange(id)
@@ -67,6 +83,7 @@ export default function Toolbar({
   const closePopovers = () => {
     setBrushLibraryOpen(false)
     setStylePopoverOpen(false)
+    setShapePopoverOpen(false)
   }
 
   return (
@@ -95,19 +112,39 @@ export default function Toolbar({
           onClick={() => {
             setBrushLibraryOpen(true)
             setStylePopoverOpen(false)
+            setShapePopoverOpen(false)
           }}
         >
           <span className="dock-icon">{activePreset ? activePreset.icon : '✏️'}</span>
           <span className="dock-label">{activePreset ? activePreset.label : 'Pluma'}</span>
         </button>
 
-        {isPenTool && (
+        <button
+          ref={shapeButtonRef}
+          className={`dock-btn ${isShapeTool ? 'active' : ''}`}
+          onClick={() => {
+            if (isShapeTool) {
+              setShapePopoverOpen((v) => !v)
+            } else {
+              onToolChange('shape')
+              setShapePopoverOpen(true)
+            }
+            setBrushLibraryOpen(false)
+            setStylePopoverOpen(false)
+          }}
+        >
+          <span className="dock-icon">{activeShapePreset.icon}</span>
+          <span className="dock-label">Formas</span>
+        </button>
+
+        {showsStyle && (
           <button
             ref={styleButtonRef}
             className="dock-btn dock-btn-swatch"
             onClick={() => {
               setStylePopoverOpen((v) => !v)
               setBrushLibraryOpen(false)
+              setShapePopoverOpen(false)
             }}
             aria-label="Color y grosor"
           >
@@ -161,6 +198,18 @@ export default function Toolbar({
         </Popover>
       )}
 
+      {shapePopoverOpen && (
+        <Popover anchorRef={shapeButtonRef} onClose={() => setShapePopoverOpen(false)}>
+          <ShapePicker
+            shapeKind={shapeKind}
+            onPick={(kind) => {
+              onShapeKindChange(kind)
+              setShapePopoverOpen(false)
+            }}
+          />
+        </Popover>
+      )}
+
       {brushLibraryOpen && (
         <BrushLibrary
           tool={isPenTool ? (tool as PenType) : 'pencil'}
@@ -170,22 +219,22 @@ export default function Toolbar({
         />
       )}
 
-      {stylePopoverOpen && isPenTool && activePreset && (
+      {stylePopoverOpen && showsStyle && (
         <Popover anchorRef={styleButtonRef} onClose={() => setStylePopoverOpen(false)}>
           <ColorPicker color={color} recentColors={recentColors} onChange={onColorChange} />
           <div className="width-slider-row">
             <span className="color-section-label">Tamaño</span>
             <input
               type="range"
-              min={activePreset.minWidth}
-              max={activePreset.maxWidth}
+              min={widthRange.min}
+              max={widthRange.max}
               step={0.5}
               value={width}
               onChange={(e) => onWidthChange(Number(e.target.value))}
             />
             <span className="width-value">{width.toFixed(1)}</span>
           </div>
-          {activePreset.supportsStraightLine && (
+          {activePreset?.supportsStraightLine && (
             <label className="straight-toggle-row">
               <span>Línea recta</span>
               <input type="checkbox" checked={straight} onChange={onStraightToggle} />

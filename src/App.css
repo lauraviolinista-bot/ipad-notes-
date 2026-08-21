@@ -693,3 +693,79 @@
 .brush-library-preview .brush-thumb {
   background: #fafafa;
 }
+
+/* ---------- Shape picker ---------- */
+.shape-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 220px;
+}
+.shape-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+.shape-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--line);
+  background: white;
+  border-radius: var(--radius-sm);
+  min-height: 56px;
+  padding: 8px 4px;
+  cursor: pointer;
+  font-size: 11px;
+  text-align: center;
+}
+.shape-item.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+.shape-item-icon {
+  font-size: 20px;
+}
+.shape-hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+
+/* ---------- Stroke selection action bar ---------- */
+.selection-bar {
+  position: absolute;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: white;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 8px;
+  z-index: 40;
+}
+.selection-bar-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  box-shadow: 0 0 0 1.5px var(--line);
+  cursor: pointer;
+}
+.selection-bar-delete {
+  border: none;
+  background: transparent;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  cursor: pointer;
+  margin-left: 4px;
+}
+.selection-bar-delete:active {
+  background: var(--surface-muted);
+}

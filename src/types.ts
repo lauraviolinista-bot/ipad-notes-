@@ -12,7 +12,8 @@ export type PenType =
   | 'stipple'
   | 'gridTexture'
   | 'brick'
-export type Tool = PenType | 'eraser' | 'select'
+export type ShapeKind = 'line' | 'rectangle' | 'ellipse' | 'triangle'
+export type Tool = PenType | 'eraser' | 'select' | 'shape'
 
 export interface StrokePoint {
   x: number

@@ -254,7 +254,8 @@ export function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke) {
   ctx.globalAlpha = stroke.opacity
 
   const needsSmoothing =
-    preset.render === 'smooth' || preset.render === 'calligraphy' || preset.render === 'marker'
+    !stroke.straight &&
+    (preset.render === 'smooth' || preset.render === 'calligraphy' || preset.render === 'marker')
   const renderStroke = needsSmoothing
     ? { ...stroke, points: smoothPoints(stroke.points) }
     : stroke

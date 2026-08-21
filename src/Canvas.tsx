@@ -1,16 +1,24 @@
 import { useEffect, useRef } from 'react'
-import type { Page, PenType, Stroke, StrokePoint } from './types'
+import type { Page, PenType, ShapeKind, Stroke, StrokePoint } from './types'
 import { getPenPreset } from './penTypes'
 import { drawStroke } from './strokeRenderer'
+import { computeShapePoints } from './shapes'
+import { strokesBBox, pointInBBox } from './geometry'
+
+type CanvasTool = PenType | 'eraser' | 'select' | 'shape' | null
 
 interface CanvasProps {
   page: Page
-  tool: PenType | 'eraser' | null
+  tool: CanvasTool
   color: string
   width: number
   straight: boolean
+  shapeKind: ShapeKind
+  selectedStrokeIds: string[]
   onStrokeEnd: (stroke: Stroke) => void
   onErase: (strokeIds: string[]) => void
+  onSelectStrokes: (ids: string[]) => void
+  onMoveStrokes: (ids: string[], dx: number, dy: number) => void
   onPointerDownCapture?: () => void
 }
 
@@ -42,14 +50,44 @@ function resizeCanvasToParent(canvas: HTMLCanvasElement) {
   ctx?.setTransform(dpr, 0, 0, dpr, 0, 0)
 }
 
+function drawMarquee(ctx: CanvasRenderingContext2D, a: StrokePoint, b: StrokePoint) {
+  const x = Math.min(a.x, b.x)
+  const y = Math.min(a.y, b.y)
+  const w = Math.abs(a.x - b.x)
+  const h = Math.abs(a.y - b.y)
+  ctx.save()
+  ctx.globalAlpha = 1
+  ctx.setLineDash([6, 4])
+  ctx.strokeStyle = '#0a84ff'
+  ctx.lineWidth = 1.5
+  ctx.fillStyle = 'rgba(10,132,255,0.08)'
+  ctx.fillRect(x, y, w, h)
+  ctx.strokeRect(x, y, w, h)
+  ctx.restore()
+}
+
+function drawSelectionOutline(ctx: CanvasRenderingContext2D, box: { minX: number; minY: number; maxX: number; maxY: number }) {
+  ctx.save()
+  ctx.globalAlpha = 1
+  ctx.setLineDash([6, 4])
+  ctx.strokeStyle = '#0a84ff'
+  ctx.lineWidth = 1.5
+  ctx.strokeRect(box.minX - 6, box.minY - 6, box.maxX - box.minX + 12, box.maxY - box.minY + 12)
+  ctx.restore()
+}
+
 export default function Canvas({
   page,
   tool,
   color,
   width,
   straight,
+  shapeKind,
+  selectedStrokeIds,
   onStrokeEnd,
   onErase,
+  onSelectStrokes,
+  onMoveStrokes,
   onPointerDownCapture,
 }: CanvasProps) {
   // Background canvas holds committed strokes — redrawn only when they change.
@@ -67,14 +105,25 @@ export default function Canvas({
   const lastPenActivityRef = useRef(0)
   const PALM_REJECTION_WINDOW_MS = 750
 
+  // Selection tool state
+  const selectModeRef = useRef<'marquee' | 'move' | null>(null)
+  const marqueeStartRef = useRef<StrokePoint | null>(null)
+  const marqueeCurrentRef = useRef<StrokePoint | null>(null)
+  const moveOriginRef = useRef<StrokePoint | null>(null)
+  const moveDeltaRef = useRef({ dx: 0, dy: 0 })
+  const movingIdsRef = useRef<string[]>([])
+
   const redrawBackground = () => {
     const canvas = bgRef.current
     const ctx = canvas?.getContext('2d')
     if (!canvas || !ctx) return
     const dpr = window.devicePixelRatio || 1
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr)
+    const hidden = movingIdsRef.current
     for (const stroke of page.strokes) {
-      if (!erasedRef.current.has(stroke.id)) drawStroke(ctx, stroke)
+      if (erasedRef.current.has(stroke.id)) continue
+      if (selectModeRef.current === 'move' && hidden.includes(stroke.id)) continue
+      drawStroke(ctx, stroke)
     }
   }
 
@@ -84,16 +133,42 @@ export default function Canvas({
     if (!canvas || !ctx) return
     const dpr = window.devicePixelRatio || 1
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr)
+
     if (currentStrokeRef.current) {
       drawStroke(ctx, currentStrokeRef.current)
+    }
+
+    if (selectModeRef.current === 'marquee' && marqueeStartRef.current && marqueeCurrentRef.current) {
+      drawMarquee(ctx, marqueeStartRef.current, marqueeCurrentRef.current)
+    }
+
+    if (selectModeRef.current === 'move' && movingIdsRef.current.length > 0) {
+      const { dx, dy } = moveDeltaRef.current
+      const moving = page.strokes.filter((s) => movingIdsRef.current.includes(s.id))
+      for (const s of moving) {
+        drawStroke(ctx, { ...s, points: s.points.map((p) => ({ ...p, x: p.x + dx, y: p.y + dy })) })
+      }
+      const box = strokesBBox(moving)
+      if (box) {
+        drawSelectionOutline(ctx, {
+          minX: box.minX + dx,
+          minY: box.minY + dy,
+          maxX: box.maxX + dx,
+          maxY: box.maxY + dy,
+        })
+      }
+    } else if (selectedStrokeIds.length > 0) {
+      const box = strokesBBox(page.strokes.filter((s) => selectedStrokeIds.includes(s.id)))
+      if (box) drawSelectionOutline(ctx, box)
     }
   }
 
   useEffect(() => {
     erasedRef.current = new Set()
     redrawBackground()
+    redrawOverlay()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page])
+  }, [page, selectedStrokeIds])
 
   useEffect(() => {
     const handleResize = () => {
@@ -116,6 +191,59 @@ export default function Canvas({
       y: e.clientY - rect.top,
       pressure: e.pressure > 0 ? e.pressure : 0.5,
     }
+  }
+
+  const eraseAt = (point: StrokePoint) => {
+    const radius = 14
+    let changed = false
+    for (const stroke of page.strokes) {
+      if (erasedRef.current.has(stroke.id)) continue
+      for (let i = 0; i < stroke.points.length; i++) {
+        const p = stroke.points[i]
+        const prev = stroke.points[i - 1]
+        const hit = prev
+          ? distToSegment(point, prev, p) < radius
+          : Math.hypot(point.x - p.x, point.y - p.y) < radius
+        if (hit) {
+          erasedRef.current.add(stroke.id)
+          changed = true
+          break
+        }
+      }
+    }
+    if (changed) redrawBackground()
+  }
+
+  const strokeHitAt = (point: StrokePoint): string | null => {
+    const radius = 10
+    for (let idx = page.strokes.length - 1; idx >= 0; idx--) {
+      const stroke = page.strokes[idx]
+      for (let i = 0; i < stroke.points.length; i++) {
+        const p = stroke.points[i]
+        const prev = stroke.points[i - 1]
+        const hit = prev
+          ? distToSegment(point, prev, p) < radius
+          : Math.hypot(point.x - p.x, point.y - p.y) < radius
+        if (hit) return stroke.id
+      }
+    }
+    return null
+  }
+
+  const handleSelectPointerDown = (point: StrokePoint) => {
+    if (selectedStrokeIds.length > 0) {
+      const box = strokesBBox(page.strokes.filter((s) => selectedStrokeIds.includes(s.id)))
+      if (box && pointInBBox(point.x, point.y, box, 10)) {
+        selectModeRef.current = 'move'
+        moveOriginRef.current = point
+        moveDeltaRef.current = { dx: 0, dy: 0 }
+        movingIdsRef.current = selectedStrokeIds
+        return
+      }
+    }
+    selectModeRef.current = 'marquee'
+    marqueeStartRef.current = point
+    marqueeCurrentRef.current = point
   }
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -141,8 +269,29 @@ export default function Canvas({
       return
     }
 
+    if (tool === 'select') {
+      handleSelectPointerDown(getPoint(e))
+      return
+    }
+
     const point = getPoint(e)
     startPointRef.current = point
+
+    if (tool === 'shape') {
+      const stroke: Stroke = {
+        id: Math.random().toString(36).slice(2),
+        tool: 'fineliner',
+        color,
+        width,
+        opacity: 1,
+        // Reused as an "exact geometry, skip smoothing" flag for shape strokes.
+        straight: true,
+        points: computeShapePoints(shapeKind, point, point),
+      }
+      currentStrokeRef.current = stroke
+      return
+    }
+
     const preset = getPenPreset(tool)
     const stroke: Stroke = {
       id: Math.random().toString(36).slice(2),
@@ -156,27 +305,6 @@ export default function Canvas({
     currentStrokeRef.current = stroke
   }
 
-  const eraseAt = (point: StrokePoint) => {
-    const radius = 14
-    let changed = false
-    for (const stroke of page.strokes) {
-      if (erasedRef.current.has(stroke.id)) continue
-      for (let i = 0; i < stroke.points.length; i++) {
-        const p = stroke.points[i]
-        const prev = stroke.points[i - 1]
-        const hit = prev
-          ? distToSegment(point, prev, p) < radius
-          : Math.hypot(point.x - p.x, point.y - p.y) < radius
-        if (hit) {
-          erasedRef.current.add(stroke.id)
-          changed = true
-          break
-        }
-      }
-    }
-    if (changed) redrawBackground()
-  }
-
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!drawingRef.current) return
     if (e.pointerId !== activePointerIdRef.current) return
@@ -188,10 +316,27 @@ export default function Canvas({
       return
     }
 
+    if (tool === 'select') {
+      const point = getPoint(e)
+      if (selectModeRef.current === 'move' && moveOriginRef.current) {
+        moveDeltaRef.current = {
+          dx: point.x - moveOriginRef.current.x,
+          dy: point.y - moveOriginRef.current.y,
+        }
+        redrawBackground()
+      } else if (selectModeRef.current === 'marquee') {
+        marqueeCurrentRef.current = point
+      }
+      redrawOverlay()
+      return
+    }
+
     const stroke = currentStrokeRef.current
     if (!stroke) return
 
-    if (stroke.straight && startPointRef.current) {
+    if (tool === 'shape' && startPointRef.current) {
+      stroke.points = computeShapePoints(shapeKind, startPointRef.current, getPoint(e))
+    } else if (stroke.straight && startPointRef.current) {
       stroke.points = [startPointRef.current, getPoint(e)]
     } else {
       const events = e.nativeEvent.getCoalescedEvents?.() ?? [e.nativeEvent]
@@ -211,6 +356,49 @@ export default function Canvas({
         onErase(Array.from(erasedRef.current))
       }
       erasedRef.current = new Set()
+      return
+    }
+
+    if (tool === 'select') {
+      if (selectModeRef.current === 'move' && moveOriginRef.current) {
+        const { dx, dy } = moveDeltaRef.current
+        const ids = movingIdsRef.current
+        selectModeRef.current = null
+        moveOriginRef.current = null
+        movingIdsRef.current = []
+        moveDeltaRef.current = { dx: 0, dy: 0 }
+        if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+          onMoveStrokes(ids, dx, dy)
+        } else {
+          redrawBackground()
+          redrawOverlay()
+        }
+        return
+      }
+
+      if (selectModeRef.current === 'marquee' && marqueeStartRef.current && marqueeCurrentRef.current) {
+        const a = marqueeStartRef.current
+        const b = marqueeCurrentRef.current
+        const tiny = Math.abs(a.x - b.x) < 6 && Math.abs(a.y - b.y) < 6
+        selectModeRef.current = null
+        marqueeStartRef.current = null
+        marqueeCurrentRef.current = null
+
+        if (tiny) {
+          const hitId = strokeHitAt(a)
+          onSelectStrokes(hitId ? [hitId] : [])
+        } else {
+          const minX = Math.min(a.x, b.x)
+          const maxX = Math.max(a.x, b.x)
+          const minY = Math.min(a.y, b.y)
+          const maxY = Math.max(a.y, b.y)
+          const ids = page.strokes
+            .filter((s) => s.points.some((p) => p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY))
+            .map((s) => s.id)
+          onSelectStrokes(ids)
+        }
+        redrawOverlay()
+      }
       return
     }
 

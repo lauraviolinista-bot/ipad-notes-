@@ -4,7 +4,7 @@ import type {
   NotebookCover,
   PageElement,
   PageTemplate,
-  PenType,
+  ShapeKind,
   Stroke,
   TextElement,
   Tool,
@@ -17,7 +17,9 @@ import Library from './Library'
 import PageElements, { TEXT_STYLE_PRESETS } from './PageElements'
 import NewNotebookModal from './NewNotebookModal'
 import TemplatePicker from './TemplatePicker'
+import SelectionActionBar from './SelectionActionBar'
 import { templateBackgroundStyle } from './pageTemplates'
+import { strokesBBox } from './geometry'
 import './App.css'
 
 const MAX_RECENT_COLORS = 6
@@ -32,6 +34,8 @@ export default function App() {
   const [straight, setStraight] = useState(false)
   const [recentColors, setRecentColors] = useState<string[]>([])
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null)
+  const [selectedStrokeIds, setSelectedStrokeIds] = useState<string[]>([])
+  const [shapeKind, setShapeKind] = useState<ShapeKind>('line')
   const [newNotebookOpen, setNewNotebookOpen] = useState(false)
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false)
 
@@ -41,6 +45,10 @@ export default function App() {
   useEffect(() => {
     saveNotebooks(notebooks)
   }, [notebooks])
+
+  useEffect(() => {
+    setSelectedStrokeIds([])
+  }, [tool, activeNotebookId, activePageIndex])
 
   const activeNotebook = notebooks.find((n) => n.id === activeNotebookId) ?? null
   const activePage = activeNotebook?.pages[activePageIndex] ?? null
@@ -81,6 +89,45 @@ export default function App() {
           : p,
       ),
     }))
+  }
+
+  const handleMoveStrokes = (ids: string[], dx: number, dy: number) => {
+    updateActiveNotebook((nb) => ({
+      ...nb,
+      pages: nb.pages.map((p, i) =>
+        i === activePageIndex
+          ? {
+              ...p,
+              strokes: p.strokes.map((s) =>
+                ids.includes(s.id)
+                  ? { ...s, points: s.points.map((pt) => ({ ...pt, x: pt.x + dx, y: pt.y + dy })) }
+                  : s,
+              ),
+            }
+          : p,
+      ),
+    }))
+  }
+
+  const handleRecolorSelectedStrokes = (newColor: string) => {
+    updateActiveNotebook((nb) => ({
+      ...nb,
+      pages: nb.pages.map((p, i) =>
+        i === activePageIndex
+          ? {
+              ...p,
+              strokes: p.strokes.map((s) =>
+                selectedStrokeIds.includes(s.id) ? { ...s, color: newColor } : s,
+              ),
+            }
+          : p,
+      ),
+    }))
+  }
+
+  const handleDeleteSelectedStrokes = () => {
+    handleErase(selectedStrokeIds)
+    setSelectedStrokeIds([])
   }
 
   const handleElementChange = (element: PageElement) => {
@@ -214,6 +261,7 @@ export default function App() {
         color={color}
         width={width}
         straight={straight}
+        shapeKind={shapeKind}
         recentColors={recentColors}
         canUndo={historyRef.current.length > 0}
         canRedo={futureRef.current.length > 0}
@@ -221,6 +269,7 @@ export default function App() {
         onColorChange={handleColorChange}
         onWidthChange={setWidth}
         onStraightToggle={() => setStraight((v) => !v)}
+        onShapeKindChange={setShapeKind}
         onUndo={handleUndo}
         onRedo={handleRedo}
         onAddPage={() => setTemplatePickerOpen(true)}
@@ -236,12 +285,16 @@ export default function App() {
           <Canvas
             key={activePage.id}
             page={activePage}
-            tool={tool === 'select' ? null : (tool as PenType | 'eraser')}
+            tool={tool}
             color={color}
             width={width}
             straight={straight}
+            shapeKind={shapeKind}
+            selectedStrokeIds={selectedStrokeIds}
             onStrokeEnd={handleStrokeEnd}
             onErase={handleErase}
+            onSelectStrokes={setSelectedStrokeIds}
+            onMoveStrokes={handleMoveStrokes}
           />
           <PageElements
             elements={activePage.elements}
@@ -250,6 +303,20 @@ export default function App() {
             onChange={handleElementChange}
             onDelete={handleElementDelete}
           />
+          {tool === 'select' &&
+            selectedStrokeIds.length > 0 &&
+            (() => {
+              const box = strokesBBox(activePage.strokes.filter((s) => selectedStrokeIds.includes(s.id)))
+              if (!box) return null
+              return (
+                <SelectionActionBar
+                  left={(box.minX + box.maxX) / 2}
+                  top={Math.max(8, box.minY - 56)}
+                  onRecolor={handleRecolorSelectedStrokes}
+                  onDelete={handleDeleteSelectedStrokes}
+                />
+              )
+            })()}
         </div>
       </div>
       <PageStrip
