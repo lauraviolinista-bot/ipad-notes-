@@ -253,6 +253,8 @@
   padding: 6px;
   z-index: 30;
   min-width: 200px;
+  max-height: 60vh;
+  overflow-y: auto;
 }
 
 .pen-menu-item {

@@ -1,4 +1,13 @@
-export type PenType = 'pencil' | 'fountain' | 'brush' | 'fineliner' | 'highlighter'
+export type PenType =
+  | 'pencil'
+  | 'fountain'
+  | 'brush'
+  | 'fineliner'
+  | 'highlighter'
+  | 'marker'
+  | 'calligraphy'
+  | 'watercolor'
+  | 'charcoal'
 export type Tool = PenType | 'eraser' | 'select'
 
 export interface StrokePoint {
