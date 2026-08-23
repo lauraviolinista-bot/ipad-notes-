@@ -12,7 +12,14 @@ export default function Library({ notebooks, onOpen, onCreate, onDelete, onSearc
   return (
     <div className="library">
       <header className="library-header">
-        <h1>Mis Cuadernos</h1>
+        <div>
+          <h1>Mis Cuadernos</h1>
+          <p className="library-subtitle">
+            {notebooks.length > 0
+              ? `${notebooks.length} ${notebooks.length === 1 ? 'cuaderno' : 'cuadernos'}`
+              : 'Tu espacio de notas'}
+          </p>
+        </div>
         <div className="library-header-actions">
           <button className="icon-btn" onClick={onSearch} aria-label="Buscar">
             🔍 Buscar
@@ -23,7 +30,11 @@ export default function Library({ notebooks, onOpen, onCreate, onDelete, onSearc
         </div>
       </header>
       {notebooks.length === 0 ? (
-        <p className="empty">Todavía no tienes cuadernos. Crea el primero.</p>
+        <div className="empty-state">
+          <span className="empty-state-icon">📓</span>
+          <p className="empty-state-title">Todavía no tienes cuadernos</p>
+          <p className="empty">Crea el primero y empieza a escribir.</p>
+        </div>
       ) : (
         <div className="notebook-grid">
           {notebooks
