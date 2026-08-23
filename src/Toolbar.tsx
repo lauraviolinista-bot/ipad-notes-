@@ -356,7 +356,11 @@ export default function Toolbar({
       )}
 
       {stylePopoverOpen && showsStyle && (
-        <Popover anchorRef={styleButtonRef} onClose={() => setStylePopoverOpen(false)}>
+        <Popover
+          anchorRef={styleButtonRef}
+          onClose={() => setStylePopoverOpen(false)}
+          className="popover-wide"
+        >
           <ColorPicker color={color} recentColors={recentColors} onChange={onColorChange} />
           <div className="width-slider-row">
             <span className="color-section-label">Tamaño</span>

@@ -214,6 +214,46 @@ textarea {
   }
 }
 
+.popover-wide {
+  width: 320px;
+}
+
+/* Spectrum color sheet: grayscale row + hue/lightness grid, cells touching */
+.spectrum-sheet {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  margin-bottom: 12px;
+}
+.spectrum-row {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+}
+.spectrum-cell {
+  aspect-ratio: 1;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: transform var(--t-fast);
+}
+.spectrum-cell:hover {
+  transform: scale(1.12);
+  z-index: 1;
+}
+.spectrum-check {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.5);
+}
+
 .color-picker {
   display: flex;
   flex-direction: column;
