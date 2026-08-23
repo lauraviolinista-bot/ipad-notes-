@@ -34,6 +34,7 @@ export default function App() {
   const [activePageIndex, setActivePageIndex] = useState(0)
   const [tool, setTool] = useState<Tool>('pencil')
   const [color, setColor] = useState('#1c1c1e')
+  const [color2, setColor2] = useState<string | null>(null)
   const [width, setWidth] = useState(2)
   const [straight, setStraight] = useState(false)
   const [recentColors, setRecentColors] = useState<string[]>([])
@@ -461,6 +462,7 @@ export default function App() {
         notebookName={activeNotebook.name}
         tool={tool}
         color={color}
+        color2={color2}
         width={width}
         straight={straight}
         shapeKind={shapeKind}
@@ -469,6 +471,7 @@ export default function App() {
         canRedo={futureRef.current.length > 0}
         onToolChange={setTool}
         onColorChange={handleColorChange}
+        onColor2Change={setColor2}
         onWidthChange={setWidth}
         onStraightToggle={() => setStraight((v) => !v)}
         onShapeKindChange={setShapeKind}
@@ -512,6 +515,7 @@ export default function App() {
             page={activePage}
             tool={tool}
             color={color}
+            color2={color2}
             width={width}
             straight={straight}
             shapeKind={shapeKind}

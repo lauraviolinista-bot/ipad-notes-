@@ -11,6 +11,7 @@ interface CanvasProps {
   page: Page
   tool: CanvasTool
   color: string
+  color2?: string | null
   width: number
   straight: boolean
   shapeKind: ShapeKind
@@ -80,6 +81,7 @@ export default function Canvas({
   page,
   tool,
   color,
+  color2,
   width,
   straight,
   shapeKind,
@@ -297,6 +299,7 @@ export default function Canvas({
       id: Math.random().toString(36).slice(2),
       tool,
       color,
+      color2: color2 ?? null,
       width,
       opacity: preset.opacity,
       straight: straight && preset.supportsStraightLine,

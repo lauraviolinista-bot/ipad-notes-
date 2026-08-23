@@ -1,17 +1,27 @@
 export type PenType =
   | 'pencil'
+  | 'mechanicalPencil'
+  | 'coloredPencil'
   | 'fountain'
   | 'brush'
+  | 'inkBrush'
   | 'fineliner'
+  | 'ballpoint'
+  | 'gelPen'
   | 'highlighter'
+  | 'neonHighlighter'
   | 'marker'
   | 'calligraphy'
   | 'watercolor'
   | 'charcoal'
+  | 'pastel'
+  | 'chalk'
+  | 'crayon'
   | 'crosshatch'
   | 'stipple'
   | 'gridTexture'
   | 'brick'
+  | 'glitter'
 export type ShapeKind = 'line' | 'rectangle' | 'ellipse' | 'triangle'
 export type Tool = PenType | 'eraser' | 'select' | 'shape'
 
@@ -25,6 +35,7 @@ export interface Stroke {
   id: string
   tool: PenType
   color: string
+  color2?: string | null
   width: number
   opacity: number
   straight: boolean

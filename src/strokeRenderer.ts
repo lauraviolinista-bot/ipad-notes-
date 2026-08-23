@@ -6,6 +6,29 @@ function seededJitter(seed: number) {
   return x - Math.floor(x)
 }
 
+function hexToRgb(hex: string): [number, number, number] {
+  const clean = hex.replace('#', '')
+  const full = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean
+  const num = parseInt(full, 16)
+  return [(num >> 16) & 255, (num >> 8) & 255, num & 255]
+}
+
+function mixColor(c1: string, c2: string, t: number): string {
+  const [r1, g1, b1] = hexToRgb(c1)
+  const [r2, g2, b2] = hexToRgb(c2)
+  const r = Math.round(r1 + (r2 - r1) * t)
+  const g = Math.round(g1 + (g2 - g1) * t)
+  const b = Math.round(b1 + (b2 - b1) * t)
+  return `rgb(${r}, ${g}, ${b})`
+}
+
+// Returns a function that maps a 0..1 position along the stroke to a color —
+// either the flat stroke color, or an interpolation toward color2 for duo-color strokes.
+function colorRamp(stroke: Stroke): (t: number) => string {
+  if (!stroke.color2) return () => stroke.color
+  return (t: number) => mixColor(stroke.color, stroke.color2!, t)
+}
+
 // Catmull-Rom spline interpolation: turns the raw, slightly jittery pointer
 // samples into a smooth curve, closer to how the Apple Pencil ink looks in
 // GoodNotes/Notes rather than a jagged polyline of raw touch points.
@@ -43,10 +66,13 @@ function smoothPoints(points: StrokePoint[], subdivisions = 4): StrokePoint[] {
 function drawTextured(ctx: CanvasRenderingContext2D, stroke: Stroke, coarse: boolean) {
   const grains = coarse ? 5 : 3
   const spread = coarse ? 0.9 : 0.6
+  const ramp = colorRamp(stroke)
+  const last = stroke.points.length - 1
   for (let i = 1; i < stroke.points.length; i++) {
     const a = stroke.points[i - 1]
     const b = stroke.points[i]
     const w = Math.max(1, stroke.width * ((a.pressure + b.pressure) / 2))
+    ctx.strokeStyle = ramp(i / last)
     for (let g = 0; g < grains; g++) {
       const jitter = (seededJitter(i * 7.3 + g) - 0.5) * w * spread
       ctx.lineWidth = Math.max(0.5, w * (coarse ? 0.55 : 0.4))
@@ -60,11 +86,14 @@ function drawTextured(ctx: CanvasRenderingContext2D, stroke: Stroke, coarse: boo
 }
 
 function drawSmooth(ctx: CanvasRenderingContext2D, stroke: Stroke, pressureSensitive: boolean) {
+  const ramp = colorRamp(stroke)
+  const last = stroke.points.length - 1
   for (let i = 1; i < stroke.points.length; i++) {
     const a = stroke.points[i - 1]
     const b = stroke.points[i]
     const pressureFactor = pressureSensitive ? (a.pressure + b.pressure) / 2 : 1
     ctx.lineWidth = Math.max(1, stroke.width * pressureFactor)
+    ctx.strokeStyle = ramp(i / last)
     ctx.beginPath()
     ctx.moveTo(a.x, a.y)
     ctx.lineTo(b.x, b.y)
@@ -74,10 +103,13 @@ function drawSmooth(ctx: CanvasRenderingContext2D, stroke: Stroke, pressureSensi
 
 function drawMarker(ctx: CanvasRenderingContext2D, stroke: Stroke) {
   ctx.lineCap = 'square'
+  const ramp = colorRamp(stroke)
+  const last = stroke.points.length - 1
   for (let i = 1; i < stroke.points.length; i++) {
     const a = stroke.points[i - 1]
     const b = stroke.points[i]
     ctx.lineWidth = stroke.width
+    ctx.strokeStyle = ramp(i / last)
     ctx.beginPath()
     ctx.moveTo(a.x, a.y)
     ctx.lineTo(b.x, b.y)
@@ -87,6 +119,8 @@ function drawMarker(ctx: CanvasRenderingContext2D, stroke: Stroke) {
 
 function drawCalligraphy(ctx: CanvasRenderingContext2D, stroke: Stroke) {
   const nibAngle = -Math.PI / 4
+  const ramp = colorRamp(stroke)
+  const last = stroke.points.length - 1
   for (let i = 1; i < stroke.points.length; i++) {
     const a = stroke.points[i - 1]
     const b = stroke.points[i]
@@ -95,6 +129,7 @@ function drawCalligraphy(ctx: CanvasRenderingContext2D, stroke: Stroke) {
     const pressureFactor = (a.pressure + b.pressure) / 2
     const w = Math.max(1, stroke.width * pressureFactor * (0.25 + diff * 0.9))
     ctx.lineWidth = w
+    ctx.strokeStyle = ramp(i / last)
     ctx.beginPath()
     ctx.moveTo(a.x, a.y)
     ctx.lineTo(b.x, b.y)
@@ -104,10 +139,13 @@ function drawCalligraphy(ctx: CanvasRenderingContext2D, stroke: Stroke) {
 
 function drawWatercolor(ctx: CanvasRenderingContext2D, stroke: Stroke) {
   const layers = 4
+  const ramp = colorRamp(stroke)
+  const last = stroke.points.length - 1
   for (let i = 1; i < stroke.points.length; i++) {
     const a = stroke.points[i - 1]
     const b = stroke.points[i]
     const w = Math.max(2, stroke.width * ((a.pressure + b.pressure) / 2))
+    ctx.strokeStyle = ramp(i / last)
     for (let l = 0; l < layers; l++) {
       const jitter = (seededJitter(i * 3.7 + l * 5.1) - 0.5) * w * 0.5
       ctx.lineWidth = w * (1 - l * 0.18)
@@ -162,12 +200,16 @@ function drawPattern(
   const w = stroke.width
   const spacing = kind === 'stipple' ? w * 0.4 : w * 0.7
   const stamps = walkStamps(stroke, spacing)
+  const ramp = colorRamp(stroke)
+  const lastStamp = Math.max(1, stamps.length - 1)
   ctx.lineCap = 'butt'
 
   stamps.forEach((s, i) => {
     const localW = Math.max(4, w * (0.6 + s.pressure * 0.6))
     const perpX = -Math.sin(s.angle)
     const perpY = Math.cos(s.angle)
+    const stampColor = ramp(i / lastStamp)
+    ctx.strokeStyle = stampColor
 
     if (kind === 'crosshatch') {
       const off = (seededJitter(i * 5.4) - 0.5) * localW
@@ -193,7 +235,7 @@ function drawPattern(
         ctx.globalAlpha = stroke.opacity * (0.5 + seededJitter(i + d) * 0.5)
         ctx.beginPath()
         ctx.arc(cx, cy, Math.max(0.6, w * 0.06), 0, Math.PI * 2)
-        ctx.fillStyle = stroke.color
+        ctx.fillStyle = stampColor
         ctx.fill()
       }
     } else if (kind === 'grid') {
@@ -227,7 +269,7 @@ function drawPattern(
       ctx.translate(cx, cy)
       ctx.rotate(s.angle)
       ctx.globalAlpha = stroke.opacity * 0.85
-      ctx.fillStyle = stroke.color
+      ctx.fillStyle = stampColor
       ctx.fillRect(-bw / 2, -bh / 2, bw * 0.85, bh)
       ctx.restore()
     }

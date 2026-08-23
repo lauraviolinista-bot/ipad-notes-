@@ -12,6 +12,7 @@ interface ToolbarProps {
   notebookName: string
   tool: Tool
   color: string
+  color2?: string | null
   width: number
   straight: boolean
   shapeKind: ShapeKind
@@ -20,6 +21,7 @@ interface ToolbarProps {
   canRedo: boolean
   onToolChange: (t: Tool) => void
   onColorChange: (c: string) => void
+  onColor2Change: (c: string | null) => void
   onWidthChange: (w: number) => void
   onStraightToggle: () => void
   onShapeKindChange: (k: ShapeKind) => void
@@ -45,6 +47,7 @@ export default function Toolbar({
   notebookName,
   tool,
   color,
+  color2,
   width,
   straight,
   shapeKind,
@@ -53,6 +56,7 @@ export default function Toolbar({
   canRedo,
   onToolChange,
   onColorChange,
+  onColor2Change,
   onWidthChange,
   onStraightToggle,
   onShapeKindChange,
@@ -190,7 +194,10 @@ export default function Toolbar({
             }}
             aria-label="Color y grosor"
           >
-            <span className="swatch-preview" style={{ background: color }} />
+            <span
+              className="swatch-preview"
+              style={{ background: color2 ? `linear-gradient(135deg, ${color}, ${color2})` : color }}
+            />
           </button>
         )}
 
@@ -361,7 +368,13 @@ export default function Toolbar({
           onClose={() => setStylePopoverOpen(false)}
           className="popover-wide"
         >
-          <ColorPicker color={color} recentColors={recentColors} onChange={onColorChange} />
+          <ColorPicker
+            color={color}
+            color2={color2}
+            recentColors={recentColors}
+            onChange={onColorChange}
+            onColor2Change={onColor2Change}
+          />
           <div className="width-slider-row">
             <span className="color-section-label">Tamaño</span>
             <input

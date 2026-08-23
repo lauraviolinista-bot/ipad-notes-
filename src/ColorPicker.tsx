@@ -16,8 +16,10 @@ const RECENT_MAX = 8
 
 interface ColorPickerProps {
   color: string
+  color2?: string | null
   recentColors: string[]
   onChange: (color: string) => void
+  onColor2Change?: (color: string | null) => void
 }
 
 function hslToHex(hsl: string): string {
@@ -47,15 +49,64 @@ function hslToHex(hsl: string): string {
   return `#${[r, g, b].map((x) => x.toString(16).padStart(2, '0')).join('')}`
 }
 
-export default function ColorPicker({ color, recentColors, onChange }: ColorPickerProps) {
+export default function ColorPicker({ color, color2, recentColors, onChange, onColor2Change }: ColorPickerProps) {
   const [customOpen, setCustomOpen] = useState(false)
+  const duoActive = color2 != null
+  // Which slot the spectrum grid writes into when duo mode is on.
+  const [duoSlot, setDuoSlot] = useState<1 | 2>(1)
 
   const pick = (hslOrHex: string) => {
-    onChange(hslOrHex.startsWith('hsl') ? hslToHex(hslOrHex) : hslOrHex)
+    const hex = hslOrHex.startsWith('hsl') ? hslToHex(hslOrHex) : hslOrHex
+    if (duoActive && duoSlot === 2) {
+      onColor2Change?.(hex)
+    } else {
+      onChange(hex)
+    }
+  }
+
+  const toggleDuo = () => {
+    if (!onColor2Change) return
+    if (duoActive) {
+      onColor2Change(null)
+    } else {
+      onColor2Change(color === '#ffffff' ? '#6d5ef1' : '#ffffff')
+      setDuoSlot(2)
+    }
+  }
+
+  const activeColorForCell = (hex: string) => {
+    if (duoActive) {
+      return duoSlot === 2 ? color2!.toLowerCase() === hex.toLowerCase() : color.toLowerCase() === hex.toLowerCase()
+    }
+    return color.toLowerCase() === hex.toLowerCase()
   }
 
   return (
     <div className="color-picker">
+      {onColor2Change && (
+        <div className="color-section duo-toggle-row">
+          <button className={`duo-toggle ${duoActive ? 'active' : ''}`} onClick={toggleDuo}>
+            🌈 Color dúo
+          </button>
+          {duoActive && (
+            <div className="duo-slots">
+              <button
+                className={`duo-slot ${duoSlot === 1 ? 'active' : ''}`}
+                style={{ background: color }}
+                onClick={() => setDuoSlot(1)}
+                aria-label="Color 1"
+              />
+              <button
+                className={`duo-slot ${duoSlot === 2 ? 'active' : ''}`}
+                style={{ background: color2 ?? '#ffffff' }}
+                onClick={() => setDuoSlot(2)}
+                aria-label="Color 2"
+              />
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="spectrum-sheet">
         <div className="spectrum-row">
           {GRAY_ROW.map((c) => (
@@ -66,7 +117,7 @@ export default function ColorPicker({ color, recentColors, onChange }: ColorPick
               onClick={() => pick(c)}
               aria-label={`Gris ${c}`}
             >
-              {hslToHex(c).toLowerCase() === color.toLowerCase() && <span className="spectrum-check" />}
+              {activeColorForCell(hslToHex(c)) && <span className="spectrum-check" />}
             </button>
           ))}
         </div>
@@ -80,7 +131,7 @@ export default function ColorPicker({ color, recentColors, onChange }: ColorPick
                 onClick={() => pick(c)}
                 aria-label={`Color ${c}`}
               >
-                {hslToHex(c).toLowerCase() === color.toLowerCase() && <span className="spectrum-check" />}
+                {activeColorForCell(hslToHex(c)) && <span className="spectrum-check" />}
               </button>
             ))}
           </div>
@@ -96,7 +147,7 @@ export default function ColorPicker({ color, recentColors, onChange }: ColorPick
                 key={c + i}
                 className={`swatch ${color === c ? 'active' : ''}`}
                 style={{ background: c }}
-                onClick={() => onChange(c)}
+                onClick={() => pick(c)}
                 aria-label={`Color reciente ${c}`}
               />
             ))}
@@ -111,8 +162,8 @@ export default function ColorPicker({ color, recentColors, onChange }: ColorPick
         {customOpen && (
           <input
             type="color"
-            value={color}
-            onChange={(e) => onChange(e.target.value)}
+            value={duoActive && duoSlot === 2 ? (color2 ?? '#ffffff') : color}
+            onChange={(e) => pick(e.target.value)}
             className="custom-color-input"
           />
         )}
