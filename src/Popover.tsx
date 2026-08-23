@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { createPortal } from 'react-dom'
 
 interface PopoverProps {
   anchorRef: RefObject<HTMLElement | null>
@@ -53,7 +54,7 @@ export default function Popover({ anchorRef, onClose, children, className = '' }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return (
+  return createPortal(
     <div
       ref={popoverRef}
       className={`popover ${className}`}
@@ -66,6 +67,7 @@ export default function Popover({ anchorRef, onClose, children, className = '' }
       onPointerDown={(e) => e.stopPropagation()}
     >
       {children}
-    </div>
+    </div>,
+    document.body,
   )
 }

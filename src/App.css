@@ -764,9 +764,9 @@ textarea {
 
 /* ---------- Brush library ---------- */
 .brush-library {
-  background: var(--surface-muted);
+  background: white;
   border-radius: var(--radius-lg);
-  width: min(640px, 100%);
+  width: min(560px, 100%);
   max-height: 85vh;
   overflow: hidden;
   box-shadow: var(--shadow-lg);
@@ -776,98 +776,18 @@ textarea {
 }
 
 .brush-library-preview {
-  background: white;
-  border-bottom: 1px solid var(--line);
-  padding: 16px 20px;
-  display: flex;
-  justify-content: center;
-}
-
-.brush-library-body {
-  display: flex;
-  min-height: 0;
-  flex: 1;
-}
-
-.brush-category-list {
-  width: 124px;
-  flex-shrink: 0;
   background: var(--surface-sunken);
-  border-right: 1px solid var(--line);
-  padding: 8px;
+  border-bottom: 1px solid var(--line);
+  padding: 20px 20px 16px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  overflow-y: auto;
-}
-
-.brush-category-item {
-  text-align: left;
-  border: none;
-  background: transparent;
-  min-height: 44px;
-  padding: 0 10px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  color: var(--ink-soft);
-  transition: background var(--t-fast), color var(--t-fast);
-}
-.brush-category-item:hover {
-  background: var(--line);
-}
-.brush-category-item.active {
-  background: var(--accent);
-  color: white;
-  box-shadow: 0 2px 8px rgba(109, 94, 241, 0.35);
-}
-
-.brush-grid {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 8px;
 }
-
-.brush-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  border: 1.5px solid transparent;
-  background: white;
-  border-radius: var(--radius-md);
-  min-height: 56px;
-  padding: 8px 12px;
-  cursor: pointer;
-  text-align: left;
-  transition: border-color var(--t-fast), background var(--t-fast), transform var(--t-fast);
-}
-.brush-card:hover {
-  border-color: var(--line-strong);
-  transform: translateX(2px);
-}
-.brush-card.active {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-
-.brush-card-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.brush-card-name {
-  font-size: 14px;
+.brush-library-preview-name {
+  font-size: 15px;
   font-weight: 700;
   color: var(--ink);
-}
-.brush-card-desc {
-  font-size: 12px;
-  color: var(--ink-soft);
 }
 
 .brush-thumb {
@@ -876,7 +796,91 @@ textarea {
   flex-shrink: 0;
 }
 .brush-library-preview .brush-thumb {
-  background: #fafafa;
+  background: white;
+  box-shadow: var(--shadow-xs);
+}
+
+/* Segmented category tabs */
+.brush-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 12px 20px 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  flex-shrink: 0;
+}
+.brush-tab {
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2.5px solid transparent;
+  transition: color var(--t-fast), border-color var(--t-fast);
+  flex-shrink: 0;
+}
+.brush-tab:hover {
+  color: var(--ink);
+}
+.brush-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Pen options as square icon cards, à la Notability */
+.brush-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 10px;
+  padding: 16px 20px 4px;
+  overflow-y: auto;
+}
+.brush-swatch-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  aspect-ratio: 1;
+  border: 1.5px solid var(--line);
+  background: var(--surface-muted);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color var(--t-fast), background var(--t-fast), transform var(--t-fast);
+}
+.brush-swatch-card:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-2px);
+}
+.brush-swatch-card.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.brush-swatch-icon {
+  font-size: 26px;
+  line-height: 1;
+}
+.brush-swatch-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-align: center;
+  line-height: 1.2;
+}
+.brush-swatch-card.active .brush-swatch-label {
+  color: var(--accent-dark);
+}
+
+.brush-swatch-desc {
+  margin: 10px 20px 20px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  text-align: center;
+  min-height: 16px;
 }
 
 /* ---------- Shape picker ---------- */
