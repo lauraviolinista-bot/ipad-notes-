@@ -387,6 +387,38 @@ textarea {
   accent-color: var(--accent);
 }
 
+.line-style-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+.segmented {
+  display: flex;
+  gap: 4px;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+}
+.segmented-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  min-height: 32px;
+  border-radius: calc(var(--radius-sm) - 2px);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+  white-space: nowrap;
+}
+.segmented-btn.active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-xs);
+}
+
 /* Sticker picker (rendered inside a Popover) */
 .sticker-picker-content {
   display: flex;

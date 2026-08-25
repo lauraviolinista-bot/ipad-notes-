@@ -29,6 +29,20 @@ function colorRamp(stroke: Stroke): (t: number) => string {
   return (t: number) => mixColor(stroke.color, stroke.color2!, t)
 }
 
+// Blends raw pressure toward a constant 1 as pressureFactor drops — at the
+// default factor (1) width responds fully to pressure, as before; at 0 the
+// line ignores pressure and stays a constant width.
+function pressureAt(stroke: Stroke, raw: number): number {
+  const f = stroke.pressureFactor ?? 1
+  return 1 + (raw - 1) * f
+}
+
+function dashArray(dash: Stroke['dash'], width: number): number[] {
+  if (dash === 'dashed') return [width * 2.6, width * 1.8]
+  if (dash === 'dotted') return [width * 0.1, width * 1.7]
+  return []
+}
+
 // Catmull-Rom spline interpolation: turns the raw, slightly jittery pointer
 // samples into a smooth curve, closer to how the Apple Pencil ink looks in
 // GoodNotes/Notes rather than a jagged polyline of raw touch points.
@@ -71,7 +85,7 @@ function drawTextured(ctx: CanvasRenderingContext2D, stroke: Stroke, coarse: boo
   for (let i = 1; i < stroke.points.length; i++) {
     const a = stroke.points[i - 1]
     const b = stroke.points[i]
-    const w = Math.max(1, stroke.width * ((a.pressure + b.pressure) / 2))
+    const w = Math.max(1, stroke.width * pressureAt(stroke, (a.pressure + b.pressure) / 2))
     ctx.strokeStyle = ramp(i / last)
     for (let g = 0; g < grains; g++) {
       const jitter = (seededJitter(i * 7.3 + g) - 0.5) * w * spread
@@ -88,10 +102,11 @@ function drawTextured(ctx: CanvasRenderingContext2D, stroke: Stroke, coarse: boo
 function drawSmooth(ctx: CanvasRenderingContext2D, stroke: Stroke, pressureSensitive: boolean) {
   const ramp = colorRamp(stroke)
   const last = stroke.points.length - 1
+  ctx.setLineDash(dashArray(stroke.dash, stroke.width))
   for (let i = 1; i < stroke.points.length; i++) {
     const a = stroke.points[i - 1]
     const b = stroke.points[i]
-    const pressureFactor = pressureSensitive ? (a.pressure + b.pressure) / 2 : 1
+    const pressureFactor = pressureSensitive ? pressureAt(stroke, (a.pressure + b.pressure) / 2) : 1
     ctx.lineWidth = Math.max(1, stroke.width * pressureFactor)
     ctx.strokeStyle = ramp(i / last)
     ctx.beginPath()
@@ -99,12 +114,14 @@ function drawSmooth(ctx: CanvasRenderingContext2D, stroke: Stroke, pressureSensi
     ctx.lineTo(b.x, b.y)
     ctx.stroke()
   }
+  ctx.setLineDash([])
 }
 
 function drawMarker(ctx: CanvasRenderingContext2D, stroke: Stroke) {
-  ctx.lineCap = 'square'
+  ctx.lineCap = stroke.cap ?? 'square'
   const ramp = colorRamp(stroke)
   const last = stroke.points.length - 1
+  ctx.setLineDash(dashArray(stroke.dash, stroke.width))
   for (let i = 1; i < stroke.points.length; i++) {
     const a = stroke.points[i - 1]
     const b = stroke.points[i]
@@ -115,6 +132,7 @@ function drawMarker(ctx: CanvasRenderingContext2D, stroke: Stroke) {
     ctx.lineTo(b.x, b.y)
     ctx.stroke()
   }
+  ctx.setLineDash([])
 }
 
 function drawCalligraphy(ctx: CanvasRenderingContext2D, stroke: Stroke) {
@@ -126,7 +144,7 @@ function drawCalligraphy(ctx: CanvasRenderingContext2D, stroke: Stroke) {
     const b = stroke.points[i]
     const strokeAngle = Math.atan2(b.y - a.y, b.x - a.x)
     const diff = Math.abs(Math.sin(strokeAngle - nibAngle))
-    const pressureFactor = (a.pressure + b.pressure) / 2
+    const pressureFactor = pressureAt(stroke, (a.pressure + b.pressure) / 2)
     const w = Math.max(1, stroke.width * pressureFactor * (0.25 + diff * 0.9))
     ctx.lineWidth = w
     ctx.strokeStyle = ramp(i / last)
@@ -144,7 +162,7 @@ function drawWatercolor(ctx: CanvasRenderingContext2D, stroke: Stroke) {
   for (let i = 1; i < stroke.points.length; i++) {
     const a = stroke.points[i - 1]
     const b = stroke.points[i]
-    const w = Math.max(2, stroke.width * ((a.pressure + b.pressure) / 2))
+    const w = Math.max(2, stroke.width * pressureAt(stroke, (a.pressure + b.pressure) / 2))
     ctx.strokeStyle = ramp(i / last)
     for (let l = 0; l < layers; l++) {
       const jitter = (seededJitter(i * 3.7 + l * 5.1) - 0.5) * w * 0.5
@@ -284,13 +302,13 @@ export function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke) {
       ctx.beginPath()
       ctx.fillStyle = stroke.color
       ctx.globalAlpha = stroke.opacity
-      ctx.arc(p.x, p.y, (stroke.width * p.pressure) / 2, 0, Math.PI * 2)
+      ctx.arc(p.x, p.y, (stroke.width * pressureAt(stroke, p.pressure)) / 2, 0, Math.PI * 2)
       ctx.fill()
       ctx.globalAlpha = 1
     }
     return
   }
-  ctx.lineCap = 'round'
+  ctx.lineCap = stroke.cap ?? 'round'
   ctx.lineJoin = 'round'
   ctx.strokeStyle = stroke.color
   ctx.globalAlpha = stroke.opacity

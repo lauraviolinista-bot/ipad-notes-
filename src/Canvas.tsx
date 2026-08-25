@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
-import type { Page, PenType, ShapeKind, Stroke, StrokePoint } from './types'
+import type { LineCap, LineDash, Page, PenType, ShapeKind, Stroke, StrokePoint } from './types'
 import { getPenPreset } from './penTypes'
 import { drawStroke } from './strokeRenderer'
 import { computeShapePoints } from './shapes'
@@ -21,6 +21,9 @@ interface CanvasProps {
   color2?: string | null
   width: number
   straight: boolean
+  lineDash?: LineDash
+  lineCap?: LineCap
+  pressureFactor?: number
   shapeKind: ShapeKind
   selectedStrokeIds: string[]
   onStrokeEnd: (stroke: Stroke) => void
@@ -97,6 +100,9 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
   color2,
   width,
   straight,
+  lineDash,
+  lineCap,
+  pressureFactor,
   shapeKind,
   selectedStrokeIds,
   onStrokeEnd,
@@ -349,6 +355,9 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
       opacity: preset.opacity,
       straight: straight && preset.supportsStraightLine,
       points: [point],
+      dash: lineDash,
+      cap: lineCap,
+      pressureFactor,
     }
     currentStrokeRef.current = stroke
   }

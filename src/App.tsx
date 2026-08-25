@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type {
+  LineCap,
+  LineDash,
   Notebook,
   NotebookCover,
   PageElement,
@@ -37,6 +39,10 @@ export default function App() {
   const [color2, setColor2] = useState<string | null>(null)
   const [width, setWidth] = useState(2)
   const [straight, setStraight] = useState(false)
+  const [lineDash, setLineDash] = useState<LineDash>('solid')
+  const [lineCap, setLineCap] = useState<LineCap>('round')
+  const [pressureFactor, setPressureFactor] = useState(1)
+  const [snapToRuled, setSnapToRuled] = useState(false)
   const [recentColors, setRecentColors] = useState<string[]>([])
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null)
   const [selectedStrokeIds, setSelectedStrokeIds] = useState<string[]>([])
@@ -187,11 +193,27 @@ export default function App() {
     setRecentColors((prev) => [c, ...prev.filter((x) => x !== c)].slice(0, MAX_RECENT_COLORS))
   }
 
+  // Matches the ruled-line background in App.css / pageTemplates.ts: lines sit
+  // at y = LINE_OFFSET + n * LINE_PITCH.
+  const RULED_LINE_PITCH = 32
+  const RULED_LINE_OFFSET = 43.5
+
+  const snapStrokeToRuledLine = (stroke: Stroke): Stroke => {
+    if (stroke.points.length === 0) return stroke
+    const baselineY = Math.max(...stroke.points.map((p) => p.y))
+    const nearestLine =
+      RULED_LINE_OFFSET + Math.round((baselineY - RULED_LINE_OFFSET) / RULED_LINE_PITCH) * RULED_LINE_PITCH
+    const dy = nearestLine - baselineY
+    if (Math.abs(dy) < 0.5) return stroke
+    return { ...stroke, points: stroke.points.map((p) => ({ ...p, y: p.y + dy })) }
+  }
+
   const handleStrokeEnd = (stroke: Stroke) => {
+    const finalStroke = snapToRuled && activePage?.template === 'lined' ? snapStrokeToRuledLine(stroke) : stroke
     updateActiveNotebook((nb) => ({
       ...nb,
       pages: nb.pages.map((p, i) =>
-        i === activePageIndex ? { ...p, strokes: [...p.strokes, stroke] } : p,
+        i === activePageIndex ? { ...p, strokes: [...p.strokes, finalStroke] } : p,
       ),
     }))
   }
@@ -560,6 +582,11 @@ export default function App() {
         color2={color2}
         width={width}
         straight={straight}
+        lineDash={lineDash}
+        lineCap={lineCap}
+        pressureFactor={pressureFactor}
+        snapToRuled={snapToRuled}
+        pageTemplate={activePage.template}
         shapeKind={shapeKind}
         recentColors={recentColors}
         canUndo={historyRef.current.length > 0}
@@ -569,6 +596,10 @@ export default function App() {
         onColor2Change={setColor2}
         onWidthChange={setWidth}
         onStraightToggle={() => setStraight((v) => !v)}
+        onLineDashChange={setLineDash}
+        onLineCapChange={setLineCap}
+        onPressureFactorChange={setPressureFactor}
+        onSnapToRuledToggle={() => setSnapToRuled((v) => !v)}
         onShapeKindChange={setShapeKind}
         onUndo={handleUndo}
         onRedo={handleRedo}
@@ -622,6 +653,9 @@ export default function App() {
               color2={color2}
               width={width}
               straight={straight}
+              lineDash={lineDash}
+              lineCap={lineCap}
+              pressureFactor={pressureFactor}
               shapeKind={shapeKind}
               selectedStrokeIds={selectedStrokeIds}
               onStrokeEnd={handleStrokeEnd}

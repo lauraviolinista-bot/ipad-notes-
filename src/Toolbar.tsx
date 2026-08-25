@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import type { PenType, ShapeKind, Tool } from './types'
+import type { LineCap, LineDash, PageTemplate, PenType, ShapeKind, Tool } from './types'
 import { getPenPreset } from './penTypes'
 import { SHAPE_PRESETS, SHAPE_WIDTH_RANGE } from './shapes'
 import ColorPicker from './ColorPicker'
@@ -15,6 +15,11 @@ interface ToolbarProps {
   color2?: string | null
   width: number
   straight: boolean
+  lineDash: LineDash
+  lineCap: LineCap
+  pressureFactor: number
+  snapToRuled: boolean
+  pageTemplate: PageTemplate
   shapeKind: ShapeKind
   recentColors: string[]
   canUndo: boolean
@@ -24,6 +29,10 @@ interface ToolbarProps {
   onColor2Change: (c: string | null) => void
   onWidthChange: (w: number) => void
   onStraightToggle: () => void
+  onLineDashChange: (d: LineDash) => void
+  onLineCapChange: (c: LineCap) => void
+  onPressureFactorChange: (f: number) => void
+  onSnapToRuledToggle: () => void
   onShapeKindChange: (k: ShapeKind) => void
   onUndo: () => void
   onRedo: () => void
@@ -50,6 +59,11 @@ export default function Toolbar({
   color2,
   width,
   straight,
+  lineDash,
+  lineCap,
+  pressureFactor,
+  snapToRuled,
+  pageTemplate,
   shapeKind,
   recentColors,
   canUndo,
@@ -59,6 +73,10 @@ export default function Toolbar({
   onColor2Change,
   onWidthChange,
   onStraightToggle,
+  onLineDashChange,
+  onLineCapChange,
+  onPressureFactorChange,
+  onSnapToRuledToggle,
   onShapeKindChange,
   onUndo,
   onRedo,
@@ -392,6 +410,86 @@ export default function Toolbar({
               <span>Línea recta</span>
               <input type="checkbox" checked={straight} onChange={onStraightToggle} />
             </label>
+          )}
+
+          {isPenTool && (
+            <>
+              <div className="line-style-row">
+                <span className="color-section-label">Estilo de línea</span>
+                <div className="segmented">
+                  <button
+                    className={`segmented-btn ${lineDash === 'solid' ? 'active' : ''}`}
+                    onClick={() => onLineDashChange('solid')}
+                    aria-label="Línea continua"
+                  >
+                    ───
+                  </button>
+                  <button
+                    className={`segmented-btn ${lineDash === 'dashed' ? 'active' : ''}`}
+                    onClick={() => onLineDashChange('dashed')}
+                    aria-label="Línea discontinua"
+                  >
+                    ╌╌╌
+                  </button>
+                  <button
+                    className={`segmented-btn ${lineDash === 'dotted' ? 'active' : ''}`}
+                    onClick={() => onLineDashChange('dotted')}
+                    aria-label="Línea punteada"
+                  >
+                    ⋯⋯
+                  </button>
+                </div>
+              </div>
+
+              <div className="line-style-row">
+                <span className="color-section-label">Puntas</span>
+                <div className="segmented">
+                  <button
+                    className={`segmented-btn ${lineCap === 'round' ? 'active' : ''}`}
+                    onClick={() => onLineCapChange('round')}
+                    aria-label="Puntas redondeadas"
+                  >
+                    ● Redonda
+                  </button>
+                  <button
+                    className={`segmented-btn ${lineCap === 'square' ? 'active' : ''}`}
+                    onClick={() => onLineCapChange('square')}
+                    aria-label="Puntas cuadradas"
+                  >
+                    ▪ Cuadrada
+                  </button>
+                  <button
+                    className={`segmented-btn ${lineCap === 'butt' ? 'active' : ''}`}
+                    onClick={() => onLineCapChange('butt')}
+                    aria-label="Puntas rectas"
+                  >
+                    ▮ Recta
+                  </button>
+                </div>
+              </div>
+
+              {activePreset?.pressureSensitive && (
+                <div className="width-slider-row">
+                  <span className="color-section-label">Sensibilidad a la presión</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={pressureFactor}
+                    onChange={(e) => onPressureFactorChange(Number(e.target.value))}
+                  />
+                  <span className="width-value">{Math.round(pressureFactor * 100)}%</span>
+                </div>
+              )}
+
+              {pageTemplate === 'lined' && (
+                <label className="straight-toggle-row">
+                  <span>Ajustar al renglón</span>
+                  <input type="checkbox" checked={snapToRuled} onChange={onSnapToRuledToggle} />
+                </label>
+              )}
+            </>
           )}
         </Popover>
       )}

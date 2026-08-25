@@ -31,6 +31,9 @@ export interface StrokePoint {
   pressure: number
 }
 
+export type LineDash = 'solid' | 'dashed' | 'dotted'
+export type LineCap = 'round' | 'square' | 'butt'
+
 export interface Stroke {
   id: string
   tool: PenType
@@ -40,6 +43,10 @@ export interface Stroke {
   opacity: number
   straight: boolean
   points: StrokePoint[]
+  dash?: LineDash
+  cap?: LineCap
+  // 0 = width ignores pressure entirely, 1 = full pressure response (default).
+  pressureFactor?: number
 }
 
 export type FontFamily = 'sans' | 'serif' | 'mono' | 'handwritten'
