@@ -11,6 +11,9 @@ export function loadNotebooks(): Notebook[] {
     return notebooks.map((nb) => ({
       ...nb,
       cover: nb.cover ?? COVER_PRESETS[0],
+      folder: nb.folder ?? null,
+      tags: nb.tags ?? [],
+      favorite: nb.favorite ?? false,
       pages: nb.pages.map((p) => ({
         ...p,
         elements: (p.elements ?? []).map((el) =>

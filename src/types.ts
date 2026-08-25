@@ -117,4 +117,7 @@ export interface Notebook {
   pages: Page[]
   updatedAt: number
   cover: NotebookCover
+  folder?: string | null
+  tags?: string[]
+  favorite?: boolean
 }

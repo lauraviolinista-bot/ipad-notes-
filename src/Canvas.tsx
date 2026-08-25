@@ -67,20 +67,35 @@ function resizeCanvasToParent(canvas: HTMLCanvasElement, sizeSource?: Element | 
   ctx?.setTransform(dpr, 0, 0, dpr, 0, 0)
 }
 
-function drawMarquee(ctx: CanvasRenderingContext2D, a: StrokePoint, b: StrokePoint) {
-  const x = Math.min(a.x, b.x)
-  const y = Math.min(a.y, b.y)
-  const w = Math.abs(a.x - b.x)
-  const h = Math.abs(a.y - b.y)
+function drawLasso(ctx: CanvasRenderingContext2D, points: StrokePoint[]) {
+  if (points.length < 2) return
   ctx.save()
   ctx.globalAlpha = 1
   ctx.setLineDash([6, 4])
   ctx.strokeStyle = '#0a84ff'
   ctx.lineWidth = 1.5
   ctx.fillStyle = 'rgba(10,132,255,0.08)'
-  ctx.fillRect(x, y, w, h)
-  ctx.strokeRect(x, y, w, h)
+  ctx.beginPath()
+  ctx.moveTo(points[0].x, points[0].y)
+  for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y)
+  ctx.closePath()
+  ctx.fill()
+  ctx.stroke()
   ctx.restore()
+}
+
+// Ray-casting point-in-polygon test.
+function pointInPolygon(p: StrokePoint, polygon: StrokePoint[]): boolean {
+  let inside = false
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].x
+    const yi = polygon[i].y
+    const xj = polygon[j].x
+    const yj = polygon[j].y
+    const intersects = yi > p.y !== yj > p.y && p.x < ((xj - xi) * (p.y - yi)) / (yj - yi) + xi
+    if (intersects) inside = !inside
+  }
+  return inside
 }
 
 function drawSelectionOutline(ctx: CanvasRenderingContext2D, box: { minX: number; minY: number; maxX: number; maxY: number }) {
@@ -132,9 +147,9 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
   const smoothedPressureRef = useRef(0.5)
 
   // Selection tool state
-  const selectModeRef = useRef<'marquee' | 'move' | null>(null)
-  const marqueeStartRef = useRef<StrokePoint | null>(null)
-  const marqueeCurrentRef = useRef<StrokePoint | null>(null)
+  const selectModeRef = useRef<'lasso' | 'move' | null>(null)
+  const lassoStartRef = useRef<StrokePoint | null>(null)
+  const lassoPointsRef = useRef<StrokePoint[]>([])
   const moveOriginRef = useRef<StrokePoint | null>(null)
   const moveDeltaRef = useRef({ dx: 0, dy: 0 })
   const movingIdsRef = useRef<string[]>([])
@@ -166,8 +181,8 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
       drawStroke(ctx, currentStrokeRef.current)
     }
 
-    if (selectModeRef.current === 'marquee' && marqueeStartRef.current && marqueeCurrentRef.current) {
-      drawMarquee(ctx, marqueeStartRef.current, marqueeCurrentRef.current)
+    if (selectModeRef.current === 'lasso' && lassoPointsRef.current.length > 1) {
+      drawLasso(ctx, lassoPointsRef.current)
     }
 
     if (selectModeRef.current === 'move' && movingIdsRef.current.length > 0) {
@@ -292,9 +307,9 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
         return
       }
     }
-    selectModeRef.current = 'marquee'
-    marqueeStartRef.current = point
-    marqueeCurrentRef.current = point
+    selectModeRef.current = 'lasso'
+    lassoStartRef.current = point
+    lassoPointsRef.current = [point]
   }
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -381,8 +396,11 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
           dy: point.y - moveOriginRef.current.y,
         }
         redrawBackground()
-      } else if (selectModeRef.current === 'marquee') {
-        marqueeCurrentRef.current = point
+      } else if (selectModeRef.current === 'lasso') {
+        const last = lassoPointsRef.current[lassoPointsRef.current.length - 1]
+        if (!last || Math.hypot(point.x - last.x, point.y - last.y) > 2) {
+          lassoPointsRef.current.push(point)
+        }
       }
       redrawOverlay()
       return
@@ -458,24 +476,21 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
         return
       }
 
-      if (selectModeRef.current === 'marquee' && marqueeStartRef.current && marqueeCurrentRef.current) {
-        const a = marqueeStartRef.current
-        const b = marqueeCurrentRef.current
-        const tiny = Math.abs(a.x - b.x) < 6 && Math.abs(a.y - b.y) < 6
+      if (selectModeRef.current === 'lasso' && lassoStartRef.current) {
+        const start = lassoStartRef.current
+        const lasso = lassoPointsRef.current
+        const last = lasso[lasso.length - 1] ?? start
+        const tiny = Math.hypot(last.x - start.x, last.y - start.y) < 6 && lasso.length < 4
         selectModeRef.current = null
-        marqueeStartRef.current = null
-        marqueeCurrentRef.current = null
+        lassoStartRef.current = null
+        lassoPointsRef.current = []
 
         if (tiny) {
-          const hitId = strokeHitAt(a)
+          const hitId = strokeHitAt(start)
           onSelectStrokes(hitId ? [hitId] : [])
         } else {
-          const minX = Math.min(a.x, b.x)
-          const maxX = Math.max(a.x, b.x)
-          const minY = Math.min(a.y, b.y)
-          const maxY = Math.max(a.y, b.y)
           const ids = page.strokes
-            .filter((s) => s.points.some((p) => p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY))
+            .filter((s) => s.points.some((p) => pointInPolygon(p, lasso)))
             .map((s) => s.id)
           onSelectStrokes(ids)
         }

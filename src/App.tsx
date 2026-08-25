@@ -102,9 +102,27 @@ export default function App() {
     }
   }
 
+  // Two-finger double-tap = undo, three-finger double-tap = redo — the same
+  // gesture Notability/GoodNotes use, so it doesn't compete with pinch (which
+  // needs sustained movement) or normal drawing (one finger/pen).
+  const tapGestureRef = useRef<{ startTime: number; maxMove: number; peakCount: number } | null>(null)
+  const tapOriginsRef = useRef<Map<number, { x: number; y: number }>>(new Map())
+  const lastTapRef = useRef<{ count: number; time: number } | null>(null)
+  const TAP_MAX_DURATION_MS = 300
+  const TAP_MAX_MOVE_PX = 12
+  const DOUBLE_TAP_WINDOW_MS = 400
+
   const handleCanvasWrapPointerDownCapture = (e: React.PointerEvent) => {
     if (e.pointerType !== 'touch') return
     pinchTouchesRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+    tapOriginsRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (pinchTouchesRef.current.size === 1) {
+      tapGestureRef.current = { startTime: Date.now(), maxMove: 0, peakCount: 1 }
+    } else if (tapGestureRef.current) {
+      tapGestureRef.current.peakCount = Math.max(tapGestureRef.current.peakCount, pinchTouchesRef.current.size)
+    }
+
     if (pinchTouchesRef.current.size === 2) {
       canvasRef.current?.cancelStroke()
       const [a, b] = Array.from(pinchTouchesRef.current.values())
@@ -121,6 +139,11 @@ export default function App() {
   const handleCanvasWrapPointerMoveCapture = (e: React.PointerEvent) => {
     if (e.pointerType !== 'touch') return
     if (!pinchTouchesRef.current.has(e.pointerId)) return
+    const origin = tapOriginsRef.current.get(e.pointerId)
+    if (origin && tapGestureRef.current) {
+      const moved = Math.hypot(e.clientX - origin.x, e.clientY - origin.y)
+      tapGestureRef.current.maxMove = Math.max(tapGestureRef.current.maxMove, moved)
+    }
     pinchTouchesRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
     if (pinchTouchesRef.current.size !== 2 || !pinchStartRef.current) return
 
@@ -141,6 +164,7 @@ export default function App() {
   const handleCanvasWrapPointerEndCapture = (e: React.PointerEvent) => {
     if (e.pointerType !== 'touch') return
     pinchTouchesRef.current.delete(e.pointerId)
+    tapOriginsRef.current.delete(e.pointerId)
     if (pinchTouchesRef.current.size < 2) {
       pinchStartRef.current = null
       if (pinchTouchesRef.current.size === 0) {
@@ -149,6 +173,25 @@ export default function App() {
           resetZoom()
         } else {
           setZoomPercent(Math.round(scale * 100))
+        }
+
+        const gesture = tapGestureRef.current
+        tapGestureRef.current = null
+        if (
+          gesture &&
+          gesture.peakCount >= 2 &&
+          gesture.maxMove < TAP_MAX_MOVE_PX &&
+          Date.now() - gesture.startTime < TAP_MAX_DURATION_MS
+        ) {
+          const now = Date.now()
+          const last = lastTapRef.current
+          if (last && last.count === gesture.peakCount && now - last.time < DOUBLE_TAP_WINDOW_MS) {
+            lastTapRef.current = null
+            if (gesture.peakCount === 2) handleUndo()
+            else if (gesture.peakCount === 3) handleRedo()
+          } else {
+            lastTapRef.current = { count: gesture.peakCount, time: now }
+          }
         }
       }
     }
@@ -540,6 +583,18 @@ export default function App() {
     commit((prev) => prev.filter((n) => n.id !== id))
   }
 
+  const handleToggleFavorite = (id: string) => {
+    setNotebooks((prev) => prev.map((n) => (n.id === id ? { ...n, favorite: !n.favorite } : n)))
+  }
+
+  const handleSetFolder = (id: string, folder: string | null) => {
+    setNotebooks((prev) => prev.map((n) => (n.id === id ? { ...n, folder } : n)))
+  }
+
+  const handleSetTags = (id: string, tags: string[]) => {
+    setNotebooks((prev) => prev.map((n) => (n.id === id ? { ...n, tags } : n)))
+  }
+
   if (!activeNotebook || !activePage) {
     return (
       <>
@@ -552,6 +607,9 @@ export default function App() {
           onCreate={() => setNewNotebookOpen(true)}
           onDelete={handleDeleteNotebook}
           onSearch={() => setSearchOpen(true)}
+          onToggleFavorite={handleToggleFavorite}
+          onSetFolder={handleSetFolder}
+          onSetTags={handleSetTags}
         />
         {newNotebookOpen && (
           <NewNotebookModal
