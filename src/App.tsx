@@ -12,7 +12,7 @@ import type {
 } from './types'
 import { emptyNotebook, emptyPage, loadNotebooks, newId, saveNotebooks } from './storage'
 import Toolbar from './Toolbar'
-import Canvas from './Canvas'
+import Canvas, { type CanvasHandle } from './Canvas'
 import PageStrip from './PageStrip'
 import Library from './Library'
 import PageElements, { TEXT_STYLE_PRESETS } from './PageElements'
@@ -48,10 +48,105 @@ export default function App() {
   const [indexingStatus, setIndexingStatus] = useState<string | null>(null)
   const [recognizing, setRecognizing] = useState(false)
   const [exportBusy, setExportBusy] = useState<string | null>(null)
+  const [zoomPercent, setZoomPercent] = useState<number | null>(null)
 
   const historyRef = useRef<Notebook[][]>([])
   const futureRef = useRef<Notebook[][]>([])
   const paperRef = useRef<HTMLDivElement>(null)
+  const zoomWrapRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<CanvasHandle>(null)
+
+  // Two-finger pinch-to-zoom on the page. Kept as plain refs (not React
+  // state) so each touchmove updates the CSS transform directly — going
+  // through setState here would re-render the whole app on every frame.
+  const zoomScaleRef = useRef(1)
+  const zoomTransformRef = useRef({ scale: 1, tx: 0, ty: 0 })
+  const pinchTouchesRef = useRef<Map<number, { x: number; y: number }>>(new Map())
+  const pinchStartRef = useRef<{
+    dist: number
+    scale: number
+    tx: number
+    ty: number
+    center: { x: number; y: number }
+  } | null>(null)
+
+  const applyZoomTransform = () => {
+    const { scale, tx, ty } = zoomTransformRef.current
+    zoomScaleRef.current = scale
+    if (zoomWrapRef.current) {
+      zoomWrapRef.current.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`
+    }
+  }
+
+  const resetZoom = () => {
+    zoomTransformRef.current = { scale: 1, tx: 0, ty: 0 }
+    applyZoomTransform()
+    setZoomPercent(null)
+  }
+
+  const clampPan = (tx: number, ty: number, scale: number) => {
+    const rect = paperRef.current?.getBoundingClientRect()
+    const w = rect?.width ?? 0
+    const h = rect?.height ?? 0
+    const maxX = (w * (scale - 1)) / 2 + 40
+    const maxY = (h * (scale - 1)) / 2 + 40
+    return {
+      tx: Math.max(-maxX, Math.min(maxX, tx)),
+      ty: Math.max(-maxY, Math.min(maxY, ty)),
+    }
+  }
+
+  const handleCanvasWrapPointerDownCapture = (e: React.PointerEvent) => {
+    if (e.pointerType !== 'touch') return
+    pinchTouchesRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (pinchTouchesRef.current.size === 2) {
+      canvasRef.current?.cancelStroke()
+      const [a, b] = Array.from(pinchTouchesRef.current.values())
+      pinchStartRef.current = {
+        dist: Math.hypot(b.x - a.x, b.y - a.y),
+        scale: zoomTransformRef.current.scale,
+        tx: zoomTransformRef.current.tx,
+        ty: zoomTransformRef.current.ty,
+        center: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+      }
+    }
+  }
+
+  const handleCanvasWrapPointerMoveCapture = (e: React.PointerEvent) => {
+    if (e.pointerType !== 'touch') return
+    if (!pinchTouchesRef.current.has(e.pointerId)) return
+    pinchTouchesRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (pinchTouchesRef.current.size !== 2 || !pinchStartRef.current) return
+
+    const [a, b] = Array.from(pinchTouchesRef.current.values())
+    const dist = Math.hypot(b.x - a.x, b.y - a.y)
+    const center = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+    const start = pinchStartRef.current
+
+    const scale = Math.max(1, Math.min(4, start.scale * (dist / start.dist)))
+    const rawTx = start.tx + (center.x - start.center.x)
+    const rawTy = start.ty + (center.y - start.center.y)
+    const { tx, ty } = clampPan(rawTx, rawTy, scale)
+
+    zoomTransformRef.current = { scale, tx, ty }
+    applyZoomTransform()
+  }
+
+  const handleCanvasWrapPointerEndCapture = (e: React.PointerEvent) => {
+    if (e.pointerType !== 'touch') return
+    pinchTouchesRef.current.delete(e.pointerId)
+    if (pinchTouchesRef.current.size < 2) {
+      pinchStartRef.current = null
+      if (pinchTouchesRef.current.size === 0) {
+        const { scale } = zoomTransformRef.current
+        if (scale <= 1.05) {
+          resetZoom()
+        } else {
+          setZoomPercent(Math.round(scale * 100))
+        }
+      }
+    }
+  }
 
   useEffect(() => {
     saveNotebooks(notebooks)
@@ -495,7 +590,14 @@ export default function App() {
       {templatePickerOpen && (
         <TemplatePicker onPick={handleAddPage} onClose={() => setTemplatePickerOpen(false)} />
       )}
-      <div className="canvas-wrap" onPointerDown={() => setSelectedElementId(null)}>
+      <div
+        className="canvas-wrap"
+        onPointerDown={() => setSelectedElementId(null)}
+        onPointerDownCapture={handleCanvasWrapPointerDownCapture}
+        onPointerMoveCapture={handleCanvasWrapPointerMoveCapture}
+        onPointerUpCapture={handleCanvasWrapPointerEndCapture}
+        onPointerCancelCapture={handleCanvasWrapPointerEndCapture}
+      >
         <div
           ref={paperRef}
           className="paper"
@@ -510,60 +612,70 @@ export default function App() {
               : {}),
           }}
         >
-          <Canvas
-            key={activePage.id}
-            page={activePage}
-            tool={tool}
-            color={color}
-            color2={color2}
-            width={width}
-            straight={straight}
-            shapeKind={shapeKind}
-            selectedStrokeIds={selectedStrokeIds}
-            onStrokeEnd={handleStrokeEnd}
-            onErase={handleErase}
-            onSelectStrokes={setSelectedStrokeIds}
-            onMoveStrokes={handleMoveStrokes}
-          />
-          <PageElements
-            elements={activePage.elements}
-            selectedId={selectedElementId}
-            onSelect={setSelectedElementId}
-            onChange={handleElementChange}
-            onDelete={handleElementDelete}
-          />
-          {tool === 'select' &&
-            selectedElementId &&
-            (() => {
-              const el = activePage.elements.find((e) => e.id === selectedElementId)
-              if (!el || el.type !== 'text') return null
-              return (
-                <TextFormatBar
-                  left={el.x}
-                  top={Math.max(8, el.y - 60)}
-                  element={el}
-                  onChangeStyle={(style) => handleTextStyleChange(el.id, style)}
-                  onDelete={() => handleElementDelete(el.id)}
-                />
-              )
-            })()}
-          {tool === 'select' &&
-            selectedStrokeIds.length > 0 &&
-            (() => {
-              const box = strokesBBox(activePage.strokes.filter((s) => selectedStrokeIds.includes(s.id)))
-              if (!box) return null
-              return (
-                <SelectionActionBar
-                  left={(box.minX + box.maxX) / 2}
-                  top={Math.max(8, box.minY - 56)}
-                  recognizing={recognizing}
-                  onRecolor={handleRecolorSelectedStrokes}
-                  onDelete={handleDeleteSelectedStrokes}
-                  onRecognizeText={handleRecognizeSelectedStrokes}
-                />
-              )
-            })()}
+          <div ref={zoomWrapRef} className="paper-zoom">
+            <Canvas
+              key={activePage.id}
+              ref={canvasRef}
+              page={activePage}
+              tool={tool}
+              color={color}
+              color2={color2}
+              width={width}
+              straight={straight}
+              shapeKind={shapeKind}
+              selectedStrokeIds={selectedStrokeIds}
+              onStrokeEnd={handleStrokeEnd}
+              onErase={handleErase}
+              onSelectStrokes={setSelectedStrokeIds}
+              onMoveStrokes={handleMoveStrokes}
+              sizeRef={paperRef}
+              zoomScaleRef={zoomScaleRef}
+            />
+            <PageElements
+              elements={activePage.elements}
+              selectedId={selectedElementId}
+              onSelect={setSelectedElementId}
+              onChange={handleElementChange}
+              onDelete={handleElementDelete}
+            />
+            {tool === 'select' &&
+              selectedElementId &&
+              (() => {
+                const el = activePage.elements.find((e) => e.id === selectedElementId)
+                if (!el || el.type !== 'text') return null
+                return (
+                  <TextFormatBar
+                    left={el.x}
+                    top={Math.max(8, el.y - 60)}
+                    element={el}
+                    onChangeStyle={(style) => handleTextStyleChange(el.id, style)}
+                    onDelete={() => handleElementDelete(el.id)}
+                  />
+                )
+              })()}
+            {tool === 'select' &&
+              selectedStrokeIds.length > 0 &&
+              (() => {
+                const box = strokesBBox(activePage.strokes.filter((s) => selectedStrokeIds.includes(s.id)))
+                if (!box) return null
+                return (
+                  <SelectionActionBar
+                    left={(box.minX + box.maxX) / 2}
+                    top={Math.max(8, box.minY - 56)}
+                    recognizing={recognizing}
+                    onRecolor={handleRecolorSelectedStrokes}
+                    onDelete={handleDeleteSelectedStrokes}
+                    onRecognizeText={handleRecognizeSelectedStrokes}
+                  />
+                )
+              })()}
+          </div>
         </div>
+        {zoomPercent !== null && (
+          <button className="zoom-reset-btn" onClick={resetZoom} aria-label="Restablecer zoom">
+            ↺ {zoomPercent}%
+          </button>
+        )}
       </div>
       <PageStrip
         pages={activeNotebook.pages}

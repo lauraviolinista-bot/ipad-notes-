@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import type { Page, PenType, ShapeKind, Stroke, StrokePoint } from './types'
 import { getPenPreset } from './penTypes'
 import { drawStroke } from './strokeRenderer'
@@ -6,6 +6,13 @@ import { computeShapePoints } from './shapes'
 import { strokesBBox, pointInBBox } from './geometry'
 
 type CanvasTool = PenType | 'eraser' | 'select' | 'shape' | null
+
+export interface CanvasHandle {
+  // Aborts the stroke currently being drawn without committing it — used when
+  // a second finger lands mid-touch and the gesture turns out to be a pinch,
+  // so the accidental stub the first finger started never gets saved.
+  cancelStroke: () => void
+}
 
 interface CanvasProps {
   page: Page
@@ -21,6 +28,12 @@ interface CanvasProps {
   onSelectStrokes: (ids: string[]) => void
   onMoveStrokes: (ids: string[], dx: number, dy: number) => void
   onPointerDownCapture?: () => void
+  // Untransformed ancestor used to size the canvas pixel buffer — the canvas's
+  // direct parent gets pinch-zoomed visually, so it can't be used for that.
+  sizeRef?: React.RefObject<HTMLElement | null>
+  // Live pinch-zoom scale factor; pointer coordinates are divided by this so
+  // drawing stays correctly aligned with the page while zoomed in.
+  zoomScaleRef?: React.RefObject<number>
 }
 
 function distToSegment(p: StrokePoint, a: StrokePoint, b: StrokePoint) {
@@ -34,8 +47,8 @@ function distToSegment(p: StrokePoint, a: StrokePoint, b: StrokePoint) {
   return Math.hypot(p.x - projX, p.y - projY)
 }
 
-function resizeCanvasToParent(canvas: HTMLCanvasElement) {
-  const parent = canvas.parentElement
+function resizeCanvasToParent(canvas: HTMLCanvasElement, sizeSource?: Element | null) {
+  const parent = sizeSource ?? canvas.parentElement
   if (!parent) return
   const rect = parent.getBoundingClientRect()
   const dpr = window.devicePixelRatio || 1
@@ -77,7 +90,7 @@ function drawSelectionOutline(ctx: CanvasRenderingContext2D, box: { minX: number
   ctx.restore()
 }
 
-export default function Canvas({
+const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
   page,
   tool,
   color,
@@ -91,7 +104,9 @@ export default function Canvas({
   onSelectStrokes,
   onMoveStrokes,
   onPointerDownCapture,
-}: CanvasProps) {
+  sizeRef,
+  zoomScaleRef,
+}, ref) {
   // Background canvas holds committed strokes — redrawn only when they change.
   const bgRef = useRef<HTMLCanvasElement>(null)
   // Overlay canvas holds only the in-progress stroke — cheap to redraw every move.
@@ -179,8 +194,9 @@ export default function Canvas({
 
   useEffect(() => {
     const handleResize = () => {
-      if (bgRef.current) resizeCanvasToParent(bgRef.current)
-      if (overlayRef.current) resizeCanvasToParent(overlayRef.current)
+      const sizeSource = sizeRef?.current
+      if (bgRef.current) resizeCanvasToParent(bgRef.current, sizeSource)
+      if (overlayRef.current) resizeCanvasToParent(overlayRef.current, sizeSource)
       redrawBackground()
       redrawOverlay()
     }
@@ -190,12 +206,24 @@ export default function Canvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useImperativeHandle(ref, () => ({
+    cancelStroke: () => {
+      if (!drawingRef.current) return
+      drawingRef.current = false
+      currentStrokeRef.current = null
+      startPointRef.current = null
+      activePointerIdRef.current = null
+      redrawOverlay()
+    },
+  }))
+
   const getPoint = (e: React.PointerEvent<HTMLCanvasElement> | PointerEvent): StrokePoint => {
     const canvas = overlayRef.current!
     const rect = canvas.getBoundingClientRect()
+    const scale = zoomScaleRef?.current || 1
     return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
+      x: (e.clientX - rect.left) / scale,
+      y: (e.clientY - rect.top) / scale,
       pressure: e.pressure > 0 ? e.pressure : 0.5,
     }
   }
@@ -365,8 +393,17 @@ export default function Canvas({
       return
     }
 
+    // Apple Pencil coalesced samples can land a fraction of a pixel apart;
+    // each extra point costs a full stroke() call in the renderer, so
+    // dropping near-duplicates keeps long, fast strokes rendering promptly.
+    const MIN_POINT_DIST = 0.5
     const events = e.nativeEvent.getCoalescedEvents?.() ?? [e.nativeEvent]
-    for (const ev of events) stroke.points.push(getSmoothedPoint(ev))
+    for (const ev of events) {
+      const next = getSmoothedPoint(ev)
+      const last = stroke.points[stroke.points.length - 1]
+      if (last && Math.hypot(next.x - last.x, next.y - last.y) < MIN_POINT_DIST) continue
+      stroke.points.push(next)
+    }
 
     // Predicted points shave perceived latency off fast handwriting — Apple
     // Pencil apps like Notability render a short predicted tail ahead of the
@@ -462,4 +499,6 @@ export default function Canvas({
       />
     </>
   )
-}
+})
+
+export default Canvas

@@ -451,6 +451,37 @@ textarea {
   pointer-events: none;
 }
 
+/* Wraps everything that lives on the page so a pinch gesture can zoom/pan it
+   with a single CSS transform, while .paper itself stays unscaled and keeps
+   sizing the canvas pixel buffer correctly. */
+.paper-zoom {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 50%;
+}
+
+.zoom-reset-btn {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 5;
+  border: none;
+  background: var(--ink);
+  color: white;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  opacity: 0.9;
+  transition: opacity var(--t-fast), transform var(--t-fast);
+}
+.zoom-reset-btn:hover {
+  opacity: 1;
+  transform: scale(1.04);
+}
+
 /* ---------- Page elements (text / stickers) on canvas ---------- */
 .text-el {
   position: absolute;
