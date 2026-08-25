@@ -106,6 +106,9 @@ export default function Canvas({
   // draw stray marks while writing.
   const lastPenActivityRef = useRef(0)
   const PALM_REJECTION_WINDOW_MS = 750
+  // Smoothed pressure carried across move events — raw Apple Pencil pressure
+  // has small sample-to-sample noise that otherwise reads as a shaky line width.
+  const smoothedPressureRef = useRef(0.5)
 
   // Selection tool state
   const selectModeRef = useRef<'marquee' | 'move' | null>(null)
@@ -129,14 +132,16 @@ export default function Canvas({
     }
   }
 
-  const redrawOverlay = () => {
+  const redrawOverlay = (previewStroke?: Stroke) => {
     const canvas = overlayRef.current
     const ctx = canvas?.getContext('2d')
     if (!canvas || !ctx) return
     const dpr = window.devicePixelRatio || 1
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr)
 
-    if (currentStrokeRef.current) {
+    if (previewStroke) {
+      drawStroke(ctx, previewStroke)
+    } else if (currentStrokeRef.current) {
       drawStroke(ctx, currentStrokeRef.current)
     }
 
@@ -193,6 +198,16 @@ export default function Canvas({
       y: e.clientY - rect.top,
       pressure: e.pressure > 0 ? e.pressure : 0.5,
     }
+  }
+
+  // Exponential smoothing on pressure: keeps the line responsive to real
+  // pressure changes (leaning harder for a thicker stroke) while filtering
+  // out the small per-sample jitter Apple Pencil reports.
+  const getSmoothedPoint = (e: React.PointerEvent<HTMLCanvasElement> | PointerEvent): StrokePoint => {
+    const point = getPoint(e)
+    const smoothed = smoothedPressureRef.current * 0.55 + point.pressure * 0.45
+    smoothedPressureRef.current = smoothed
+    return { ...point, pressure: smoothed }
   }
 
   const eraseAt = (point: StrokePoint) => {
@@ -294,6 +309,8 @@ export default function Canvas({
       return
     }
 
+    smoothedPressureRef.current = point.pressure
+
     const preset = getPenPreset(tool)
     const stroke: Stroke = {
       id: Math.random().toString(36).slice(2),
@@ -339,13 +356,29 @@ export default function Canvas({
 
     if (tool === 'shape' && startPointRef.current) {
       stroke.points = computeShapePoints(shapeKind, startPointRef.current, getPoint(e))
-    } else if (stroke.straight && startPointRef.current) {
-      stroke.points = [startPointRef.current, getPoint(e)]
-    } else {
-      const events = e.nativeEvent.getCoalescedEvents?.() ?? [e.nativeEvent]
-      for (const ev of events) stroke.points.push(getPoint(ev))
+      redrawOverlay()
+      return
     }
-    redrawOverlay()
+    if (stroke.straight && startPointRef.current) {
+      stroke.points = [startPointRef.current, getPoint(e)]
+      redrawOverlay()
+      return
+    }
+
+    const events = e.nativeEvent.getCoalescedEvents?.() ?? [e.nativeEvent]
+    for (const ev of events) stroke.points.push(getSmoothedPoint(ev))
+
+    // Predicted points shave perceived latency off fast handwriting — Apple
+    // Pencil apps like Notability render a short predicted tail ahead of the
+    // real samples so the ink feels attached to the tip. They're shown in the
+    // overlay preview only and never committed to the saved stroke.
+    const predicted = e.nativeEvent.getPredictedEvents?.() ?? []
+    if (predicted.length > 0) {
+      const predictedPoints = predicted.map((ev) => getPoint(ev))
+      redrawOverlay({ ...stroke, points: [...stroke.points, ...predictedPoints] })
+    } else {
+      redrawOverlay()
+    }
   }
 
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
