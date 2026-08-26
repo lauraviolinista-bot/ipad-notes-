@@ -51,6 +51,7 @@ export default function App() {
   const [lineCap, setLineCap] = useState<LineCap>('round')
   const [pressureFactor, setPressureFactor] = useState(1)
   const [snapToRuled, setSnapToRuled] = useState(false)
+  const [shapeAssist, setShapeAssist] = useState(false)
   const [recentColors, setRecentColors] = useState<string[]>([])
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null)
   const [selectedStrokeIds, setSelectedStrokeIds] = useState<string[]>([])
@@ -720,6 +721,7 @@ export default function App() {
         lineCap={lineCap}
         pressureFactor={pressureFactor}
         snapToRuled={snapToRuled}
+        shapeAssist={shapeAssist}
         pageTemplate={activePage.template}
         shapeKind={shapeKind}
         recentColors={recentColors}
@@ -734,6 +736,7 @@ export default function App() {
         onLineCapChange={setLineCap}
         onPressureFactorChange={setPressureFactor}
         onSnapToRuledToggle={() => setSnapToRuled((v) => !v)}
+        onShapeAssistToggle={() => setShapeAssist((v) => !v)}
         onShapeKindChange={setShapeKind}
         onUndo={handleUndo}
         onRedo={handleRedo}
@@ -803,6 +806,7 @@ export default function App() {
                 lineDash={lineDash}
                 lineCap={lineCap}
                 pressureFactor={pressureFactor}
+                shapeAssist={shapeAssist}
                 shapeKind={shapeKind}
                 selectedStrokeIds={selectedStrokeIds}
                 onStrokeEnd={(stroke) => handleStrokeEnd(activePageIndex, stroke)}
@@ -889,6 +893,7 @@ export default function App() {
                   lineDash={lineDash}
                   lineCap={lineCap}
                   pressureFactor={pressureFactor}
+                  shapeAssist={shapeAssist}
                   shapeKind={shapeKind}
                   selectedStrokeIds={i === activePageIndex ? selectedStrokeIds : []}
                   onStrokeEnd={(stroke) => handleStrokeEnd(i, stroke)}

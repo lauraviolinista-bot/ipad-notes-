@@ -4,6 +4,7 @@ import { getPenPreset } from './penTypes'
 import { drawStroke } from './strokeRenderer'
 import { computeShapePoints } from './shapes'
 import { strokesBBox, pointInBBox } from './geometry'
+import { applyShapeAssist } from './shapeRecognition'
 
 type CanvasTool = PenType | 'eraser' | 'select' | 'shape' | null
 
@@ -24,6 +25,7 @@ interface CanvasProps {
   lineDash?: LineDash
   lineCap?: LineCap
   pressureFactor?: number
+  shapeAssist?: boolean
   shapeKind: ShapeKind
   selectedStrokeIds: string[]
   onStrokeEnd: (stroke: Stroke) => void
@@ -118,6 +120,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
   lineDash,
   lineCap,
   pressureFactor,
+  shapeAssist,
   shapeKind,
   selectedStrokeIds,
   onStrokeEnd,
@@ -504,7 +507,11 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
     startPointRef.current = null
     redrawOverlay()
     if (stroke && stroke.points.length > 0) {
-      onStrokeEnd(stroke)
+      const finalStroke =
+        shapeAssist && tool !== 'shape' && !stroke.straight
+          ? { ...stroke, points: applyShapeAssist(stroke.points) }
+          : stroke
+      onStrokeEnd(finalStroke)
     }
   }
 

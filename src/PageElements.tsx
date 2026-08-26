@@ -16,6 +16,17 @@ export const TEXT_STYLE_PRESETS: TextStyle[] = [
   { fill: null, border: '#4a90ff', textColor: '#1c1c1e', ...BASE_TEXT_STYLE },
 ]
 
+// Pastel sticky-note looks — a soft fill with a matching dark-ish text color,
+// closer to a real Post-it than the bold saturated fills above.
+export const POST_IT_PRESETS: TextStyle[] = [
+  { fill: '#fff2a8', border: null, textColor: '#5c4a00', ...BASE_TEXT_STYLE },
+  { fill: '#ffd6e0', border: null, textColor: '#7a1f3d', ...BASE_TEXT_STYLE },
+  { fill: '#cdeccd', border: null, textColor: '#1f5c2e', ...BASE_TEXT_STYLE },
+  { fill: '#cfe8ff', border: null, textColor: '#0f3f6e', ...BASE_TEXT_STYLE },
+  { fill: '#ffe0bd', border: null, textColor: '#6e3d0f', ...BASE_TEXT_STYLE },
+  { fill: '#e3d4ff', border: null, textColor: '#3d1f6e', ...BASE_TEXT_STYLE },
+]
+
 interface PageElementsProps {
   elements: PageElement[]
   selectedId: string | null

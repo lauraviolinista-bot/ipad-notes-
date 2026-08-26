@@ -15,6 +15,26 @@ const STICKER_CATEGORIES: { label: string; emojis: string[] }[] = [
     label: 'Naturaleza',
     emojis: ['🌿', '🌸', '🌞', '🌙', '⭐️', '☁️', '🌈', '🍃', '🌵', '🍂', '🌊', '🦋'],
   },
+  {
+    label: 'Notas adhesivas',
+    emojis: ['🗒️', '📋', '🧷', '🖇️', '📎', '🏷️', '📌', '🗂️', '📇', '🪧', '📝', '🔖'],
+  },
+  {
+    label: 'Flechas y bocadillos',
+    emojis: ['➡️', '↗️', '↩️', '↪️', '🔄', '➰', '💬', '💭', '❗', '❓', '✨', '💥'],
+  },
+  {
+    label: 'Marcos y cintas',
+    emojis: ['🎀', '🎗️', '🧵', '🪢', '🖼️', '🪪', '📮', '✉️', '📦', '🎫', '🏳️', '🪅'],
+  },
+  {
+    label: 'Café y postres',
+    emojis: ['☕', '🍵', '🧋', '🍰', '🧁', '🍪', '🍓', '🍌', '🥐', '🍩', '🍯', '🍫'],
+  },
+  {
+    label: 'Playa y viaje',
+    emojis: ['🏖️', '⛱️', '🧳', '✈️', '⛵', '🌴', '🗺️', '🧭', '📷', '🎒', '🚲', '🛶'],
+  },
 ]
 
 interface StickerPickerProps {

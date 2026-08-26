@@ -19,6 +19,7 @@ interface ToolbarProps {
   lineCap: LineCap
   pressureFactor: number
   snapToRuled: boolean
+  shapeAssist: boolean
   pageTemplate: PageTemplate
   shapeKind: ShapeKind
   recentColors: string[]
@@ -33,6 +34,7 @@ interface ToolbarProps {
   onLineCapChange: (c: LineCap) => void
   onPressureFactorChange: (f: number) => void
   onSnapToRuledToggle: () => void
+  onShapeAssistToggle: () => void
   onShapeKindChange: (k: ShapeKind) => void
   onUndo: () => void
   onRedo: () => void
@@ -65,6 +67,7 @@ export default function Toolbar({
   lineCap,
   pressureFactor,
   snapToRuled,
+  shapeAssist,
   pageTemplate,
   shapeKind,
   recentColors,
@@ -79,6 +82,7 @@ export default function Toolbar({
   onLineCapChange,
   onPressureFactorChange,
   onSnapToRuledToggle,
+  onShapeAssistToggle,
   onShapeKindChange,
   onUndo,
   onRedo,
@@ -500,6 +504,11 @@ export default function Toolbar({
                   <input type="checkbox" checked={snapToRuled} onChange={onSnapToRuledToggle} />
                 </label>
               )}
+
+              <label className="straight-toggle-row" title="Convierte líneas, rectángulos y círculos dibujados a mano en formas perfectas">
+                <span>Dibujo asistido</span>
+                <input type="checkbox" checked={shapeAssist} onChange={onShapeAssistToggle} />
+              </label>
             </>
           )}
         </Popover>

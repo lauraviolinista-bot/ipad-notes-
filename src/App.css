@@ -1448,17 +1448,48 @@ textarea {
 .text-format-bar {
   position: absolute;
   display: flex;
-  align-items: center;
-  gap: 4px;
+  flex-direction: column;
+  gap: 6px;
   background: white;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   padding: 6px 8px;
   z-index: 40;
-  flex-wrap: nowrap;
   max-width: 90vw;
-  overflow-x: auto;
   animation: pop-in var(--t-med);
+}
+.text-format-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+.text-style-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+.text-style-swatch-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.text-style-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: transform var(--t-fast);
+}
+.text-style-swatch:hover {
+  transform: scale(1.1);
+}
+.post-it-swatch {
+  border: none;
+  box-shadow: var(--shadow-xs);
 }
 .text-format-font {
   border: 1.5px solid var(--line);
