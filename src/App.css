@@ -471,6 +471,41 @@ textarea {
   overflow: hidden;
 }
 
+.continuous-wrap {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.continuous-scroll {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  padding-bottom: 60px;
+}
+.continuous-page {
+  width: 100%;
+  max-width: 900px;
+  aspect-ratio: 3 / 4;
+  flex-shrink: 0;
+  transition: box-shadow var(--t-med);
+}
+.continuous-page.active {
+  box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow-md);
+}
+.continuous-page-number {
+  position: absolute;
+  bottom: 10px;
+  right: 14px;
+  z-index: 1;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-faint);
+  background: rgba(255, 255, 255, 0.85);
+  padding: 2px 9px;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
 .paper-canvas {
   position: absolute;
   inset: 0;
@@ -588,29 +623,63 @@ textarea {
   flex-shrink: 0;
 }
 
+.page-thumb-group {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
 .page-thumb {
   position: relative;
   flex-shrink: 0;
-}
-.page-thumb button:first-child {
   width: 44px;
   height: 44px;
   border-radius: var(--radius-sm);
   border: 2px solid var(--line);
   background: white;
-  cursor: pointer;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast), opacity var(--t-fast);
+  touch-action: none;
+}
+.page-thumb-number {
   font-weight: 700;
   color: var(--ink-soft);
-  transition: border-color var(--t-fast), color var(--t-fast), transform var(--t-fast);
+  pointer-events: none;
 }
-.page-thumb button:first-child:hover {
+.page-thumb:hover {
   border-color: var(--line-strong);
   transform: translateY(-1px);
 }
-.page-thumb.active button:first-child {
+.page-thumb.active {
   border-color: var(--accent);
-  color: var(--accent-dark);
   box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.page-thumb.active .page-thumb-number {
+  color: var(--accent-dark);
+}
+.page-thumb.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+.page-thumb.drag-over {
+  border-color: var(--accent);
+  transform: scale(1.08);
+}
+.duplicate-page {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  background: var(--ink-soft);
+  color: white;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
 }
 .delete-page {
   position: absolute;
@@ -625,6 +694,26 @@ textarea {
   font-size: 12px;
   line-height: 1;
   cursor: pointer;
+}
+.insert-page-gap {
+  flex-shrink: 0;
+  width: 18px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--ink-faint);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--t-fast), color var(--t-fast);
+}
+.page-strip:hover .insert-page-gap {
+  opacity: 0.5;
+}
+.insert-page-gap:hover {
+  opacity: 1 !important;
+  color: var(--accent);
 }
 
 /* ---------- Library ---------- */

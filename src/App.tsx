@@ -49,6 +49,8 @@ export default function App() {
   const [shapeKind, setShapeKind] = useState<ShapeKind>('line')
   const [newNotebookOpen, setNewNotebookOpen] = useState(false)
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false)
+  const [insertPageAtIndex, setInsertPageAtIndex] = useState<number | null>(null)
+  const [viewMode, setViewMode] = useState<'single' | 'continuous'>('single')
   const [searchOpen, setSearchOpen] = useState(false)
   const [importBusy, setImportBusy] = useState<string | null>(null)
   const [indexingStatus, setIndexingStatus] = useState<string | null>(null)
@@ -251,21 +253,22 @@ export default function App() {
     return { ...stroke, points: stroke.points.map((p) => ({ ...p, y: p.y + dy })) }
   }
 
-  const handleStrokeEnd = (stroke: Stroke) => {
-    const finalStroke = snapToRuled && activePage?.template === 'lined' ? snapStrokeToRuledLine(stroke) : stroke
+  const handleStrokeEnd = (pageIndex: number, stroke: Stroke) => {
+    const page = activeNotebook?.pages[pageIndex]
+    const finalStroke = snapToRuled && page?.template === 'lined' ? snapStrokeToRuledLine(stroke) : stroke
     updateActiveNotebook((nb) => ({
       ...nb,
       pages: nb.pages.map((p, i) =>
-        i === activePageIndex ? { ...p, strokes: [...p.strokes, finalStroke] } : p,
+        i === pageIndex ? { ...p, strokes: [...p.strokes, finalStroke] } : p,
       ),
     }))
   }
 
-  const handleErase = (strokeIds: string[]) => {
+  const handleErase = (pageIndex: number, strokeIds: string[]) => {
     updateActiveNotebook((nb) => ({
       ...nb,
       pages: nb.pages.map((p, i) =>
-        i === activePageIndex
+        i === pageIndex
           ? { ...p, strokes: p.strokes.filter((s) => !strokeIds.includes(s.id)) }
           : p,
       ),
@@ -307,7 +310,7 @@ export default function App() {
   }
 
   const handleDeleteSelectedStrokes = () => {
-    handleErase(selectedStrokeIds)
+    handleErase(activePageIndex, selectedStrokeIds)
     setSelectedStrokeIds([])
   }
 
@@ -557,6 +560,49 @@ export default function App() {
     setActivePageIndex((i) => (i >= index && i > 0 ? i - 1 : i))
   }
 
+  const handleDuplicatePage = (index: number) => {
+    updateActiveNotebook((nb) => {
+      const source = nb.pages[index]
+      const copy = {
+        ...source,
+        id: newId(),
+        strokes: source.strokes.map((s) => ({ ...s, id: newId() })),
+        elements: source.elements.map((el) => ({ ...el, id: newId() })),
+      }
+      const pages = [...nb.pages]
+      pages.splice(index + 1, 0, copy)
+      return { ...nb, pages }
+    })
+    setActivePageIndex(index + 1)
+  }
+
+  const handleInsertPageAt = (index: number, template: PageTemplate) => {
+    updateActiveNotebook((nb) => {
+      const pages = [...nb.pages]
+      pages.splice(index, 0, emptyPage(template))
+      return { ...nb, pages }
+    })
+    setActivePageIndex(index)
+    setTemplatePickerOpen(false)
+    setInsertPageAtIndex(null)
+  }
+
+  const handleReorderPages = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return
+    updateActiveNotebook((nb) => {
+      const pages = [...nb.pages]
+      const [moved] = pages.splice(fromIndex, 1)
+      pages.splice(toIndex, 0, moved)
+      return { ...nb, pages }
+    })
+    setActivePageIndex((i) => {
+      if (i === fromIndex) return toIndex
+      if (fromIndex < i && i <= toIndex) return i - 1
+      if (toIndex <= i && i < fromIndex) return i + 1
+      return i
+    })
+  }
+
   const handleUndo = () => {
     const prev = historyRef.current.pop()
     if (!prev) return
@@ -675,105 +721,208 @@ export default function App() {
         onSharePage={handleSharePage}
         canShare={canShare}
         exportBusy={exportBusy}
+        viewMode={viewMode}
+        onViewModeToggle={() => setViewMode((v) => (v === 'single' ? 'continuous' : 'single'))}
       />
       {templatePickerOpen && (
-        <TemplatePicker onPick={handleAddPage} onClose={() => setTemplatePickerOpen(false)} />
-      )}
-      <div
-        className="canvas-wrap"
-        onPointerDown={() => setSelectedElementId(null)}
-        onPointerDownCapture={handleCanvasWrapPointerDownCapture}
-        onPointerMoveCapture={handleCanvasWrapPointerMoveCapture}
-        onPointerUpCapture={handleCanvasWrapPointerEndCapture}
-        onPointerCancelCapture={handleCanvasWrapPointerEndCapture}
-      >
-        <div
-          ref={paperRef}
-          className="paper"
-          style={{
-            ...templateBackgroundStyle(activePage.template),
-            ...(activePage.background
-              ? {
-                  backgroundImage: `url(${activePage.background})`,
-                  backgroundSize: '100% 100%',
-                  backgroundRepeat: 'no-repeat',
-                }
-              : {}),
+        <TemplatePicker
+          onPick={
+            insertPageAtIndex !== null
+              ? (template) => handleInsertPageAt(insertPageAtIndex, template)
+              : handleAddPage
+          }
+          onClose={() => {
+            setTemplatePickerOpen(false)
+            setInsertPageAtIndex(null)
           }}
+        />
+      )}
+      {viewMode === 'single' ? (
+        <div
+          className="canvas-wrap"
+          onPointerDown={() => setSelectedElementId(null)}
+          onPointerDownCapture={handleCanvasWrapPointerDownCapture}
+          onPointerMoveCapture={handleCanvasWrapPointerMoveCapture}
+          onPointerUpCapture={handleCanvasWrapPointerEndCapture}
+          onPointerCancelCapture={handleCanvasWrapPointerEndCapture}
         >
-          <div ref={zoomWrapRef} className="paper-zoom">
-            <Canvas
-              key={activePage.id}
-              ref={canvasRef}
-              page={activePage}
-              tool={tool}
-              color={color}
-              color2={color2}
-              width={width}
-              straight={straight}
-              lineDash={lineDash}
-              lineCap={lineCap}
-              pressureFactor={pressureFactor}
-              shapeKind={shapeKind}
-              selectedStrokeIds={selectedStrokeIds}
-              onStrokeEnd={handleStrokeEnd}
-              onErase={handleErase}
-              onSelectStrokes={setSelectedStrokeIds}
-              onMoveStrokes={handleMoveStrokes}
-              sizeRef={paperRef}
-              zoomScaleRef={zoomScaleRef}
-            />
-            <PageElements
-              elements={activePage.elements}
-              selectedId={selectedElementId}
-              onSelect={setSelectedElementId}
-              onChange={handleElementChange}
-              onDelete={handleElementDelete}
-            />
-            {tool === 'select' &&
-              selectedElementId &&
-              (() => {
-                const el = activePage.elements.find((e) => e.id === selectedElementId)
-                if (!el || el.type !== 'text') return null
-                return (
-                  <TextFormatBar
-                    left={el.x}
-                    top={Math.max(8, el.y - 60)}
-                    element={el}
-                    onChangeStyle={(style) => handleTextStyleChange(el.id, style)}
-                    onDelete={() => handleElementDelete(el.id)}
-                  />
-                )
-              })()}
-            {tool === 'select' &&
-              selectedStrokeIds.length > 0 &&
-              (() => {
-                const box = strokesBBox(activePage.strokes.filter((s) => selectedStrokeIds.includes(s.id)))
-                if (!box) return null
-                return (
-                  <SelectionActionBar
-                    left={(box.minX + box.maxX) / 2}
-                    top={Math.max(8, box.minY - 56)}
-                    recognizing={recognizing}
-                    onRecolor={handleRecolorSelectedStrokes}
-                    onDelete={handleDeleteSelectedStrokes}
-                    onRecognizeText={handleRecognizeSelectedStrokes}
-                  />
-                )
-              })()}
+          <div
+            ref={paperRef}
+            className="paper"
+            style={{
+              ...templateBackgroundStyle(activePage.template),
+              ...(activePage.background
+                ? {
+                    backgroundImage: `url(${activePage.background})`,
+                    backgroundSize: '100% 100%',
+                    backgroundRepeat: 'no-repeat',
+                  }
+                : {}),
+            }}
+          >
+            <div ref={zoomWrapRef} className="paper-zoom">
+              <Canvas
+                key={activePage.id}
+                ref={canvasRef}
+                page={activePage}
+                tool={tool}
+                color={color}
+                color2={color2}
+                width={width}
+                straight={straight}
+                lineDash={lineDash}
+                lineCap={lineCap}
+                pressureFactor={pressureFactor}
+                shapeKind={shapeKind}
+                selectedStrokeIds={selectedStrokeIds}
+                onStrokeEnd={(stroke) => handleStrokeEnd(activePageIndex, stroke)}
+                onErase={(ids) => handleErase(activePageIndex, ids)}
+                onSelectStrokes={setSelectedStrokeIds}
+                onMoveStrokes={handleMoveStrokes}
+                sizeRef={paperRef}
+                zoomScaleRef={zoomScaleRef}
+              />
+              <PageElements
+                elements={activePage.elements}
+                selectedId={selectedElementId}
+                onSelect={setSelectedElementId}
+                onChange={handleElementChange}
+                onDelete={handleElementDelete}
+              />
+              {tool === 'select' &&
+                selectedElementId &&
+                (() => {
+                  const el = activePage.elements.find((e) => e.id === selectedElementId)
+                  if (!el || el.type !== 'text') return null
+                  return (
+                    <TextFormatBar
+                      left={el.x}
+                      top={Math.max(8, el.y - 60)}
+                      element={el}
+                      onChangeStyle={(style) => handleTextStyleChange(el.id, style)}
+                      onDelete={() => handleElementDelete(el.id)}
+                    />
+                  )
+                })()}
+              {tool === 'select' &&
+                selectedStrokeIds.length > 0 &&
+                (() => {
+                  const box = strokesBBox(activePage.strokes.filter((s) => selectedStrokeIds.includes(s.id)))
+                  if (!box) return null
+                  return (
+                    <SelectionActionBar
+                      left={(box.minX + box.maxX) / 2}
+                      top={Math.max(8, box.minY - 56)}
+                      recognizing={recognizing}
+                      onRecolor={handleRecolorSelectedStrokes}
+                      onDelete={handleDeleteSelectedStrokes}
+                      onRecognizeText={handleRecognizeSelectedStrokes}
+                    />
+                  )
+                })()}
+            </div>
+          </div>
+          {zoomPercent !== null && (
+            <button className="zoom-reset-btn" onClick={resetZoom} aria-label="Restablecer zoom">
+              ↺ {zoomPercent}%
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="canvas-wrap continuous-wrap" onPointerDown={() => setSelectedElementId(null)}>
+          <div className="continuous-scroll">
+            {activeNotebook.pages.map((page, i) => (
+              <div
+                key={page.id}
+                className={`paper continuous-page ${i === activePageIndex ? 'active' : ''}`}
+                ref={i === activePageIndex ? paperRef : undefined}
+                onPointerDownCapture={() => setActivePageIndex(i)}
+                style={{
+                  ...templateBackgroundStyle(page.template),
+                  ...(page.background
+                    ? {
+                        backgroundImage: `url(${page.background})`,
+                        backgroundSize: '100% 100%',
+                        backgroundRepeat: 'no-repeat',
+                      }
+                    : {}),
+                }}
+              >
+                <Canvas
+                  key={page.id}
+                  page={page}
+                  tool={tool}
+                  color={color}
+                  color2={color2}
+                  width={width}
+                  straight={straight}
+                  lineDash={lineDash}
+                  lineCap={lineCap}
+                  pressureFactor={pressureFactor}
+                  shapeKind={shapeKind}
+                  selectedStrokeIds={i === activePageIndex ? selectedStrokeIds : []}
+                  onStrokeEnd={(stroke) => handleStrokeEnd(i, stroke)}
+                  onErase={(ids) => handleErase(i, ids)}
+                  onSelectStrokes={setSelectedStrokeIds}
+                  onMoveStrokes={handleMoveStrokes}
+                />
+                <PageElements
+                  elements={page.elements}
+                  selectedId={i === activePageIndex ? selectedElementId : null}
+                  onSelect={setSelectedElementId}
+                  onChange={handleElementChange}
+                  onDelete={handleElementDelete}
+                />
+                {i === activePageIndex &&
+                  tool === 'select' &&
+                  selectedElementId &&
+                  (() => {
+                    const el = page.elements.find((e) => e.id === selectedElementId)
+                    if (!el || el.type !== 'text') return null
+                    return (
+                      <TextFormatBar
+                        left={el.x}
+                        top={Math.max(8, el.y - 60)}
+                        element={el}
+                        onChangeStyle={(style) => handleTextStyleChange(el.id, style)}
+                        onDelete={() => handleElementDelete(el.id)}
+                      />
+                    )
+                  })()}
+                {i === activePageIndex &&
+                  tool === 'select' &&
+                  selectedStrokeIds.length > 0 &&
+                  (() => {
+                    const box = strokesBBox(page.strokes.filter((s) => selectedStrokeIds.includes(s.id)))
+                    if (!box) return null
+                    return (
+                      <SelectionActionBar
+                        left={(box.minX + box.maxX) / 2}
+                        top={Math.max(8, box.minY - 56)}
+                        recognizing={recognizing}
+                        onRecolor={handleRecolorSelectedStrokes}
+                        onDelete={handleDeleteSelectedStrokes}
+                        onRecognizeText={handleRecognizeSelectedStrokes}
+                      />
+                    )
+                  })()}
+                <span className="continuous-page-number">{i + 1}</span>
+              </div>
+            ))}
           </div>
         </div>
-        {zoomPercent !== null && (
-          <button className="zoom-reset-btn" onClick={resetZoom} aria-label="Restablecer zoom">
-            ↺ {zoomPercent}%
-          </button>
-        )}
-      </div>
+      )}
       <PageStrip
         pages={activeNotebook.pages}
         activeIndex={activePageIndex}
         onSelect={setActivePageIndex}
         onDelete={handleDeletePage}
+        onDuplicate={handleDuplicatePage}
+        onInsertAt={(index) => {
+          setInsertPageAtIndex(index)
+          setTemplatePickerOpen(true)
+        }}
+        onReorder={handleReorderPages}
       />
     </div>
   )

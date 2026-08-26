@@ -50,6 +50,8 @@ interface ToolbarProps {
   onSharePage: () => void
   canShare: boolean
   exportBusy: string | null
+  viewMode: 'single' | 'continuous'
+  onViewModeToggle: () => void
 }
 
 export default function Toolbar({
@@ -94,6 +96,8 @@ export default function Toolbar({
   onSharePage,
   canShare,
   exportBusy,
+  viewMode,
+  onViewModeToggle,
 }: ToolbarProps) {
   const [brushLibraryOpen, setBrushLibraryOpen] = useState(false)
   const [stylePopoverOpen, setStylePopoverOpen] = useState(false)
@@ -163,6 +167,13 @@ export default function Toolbar({
           disabled={exportBusy !== null}
         >
           {exportBusy ?? '📤 Exportar'}
+        </button>
+        <button
+          className="icon-btn"
+          onClick={onViewModeToggle}
+          title={viewMode === 'single' ? 'Cambiar a vista continua' : 'Cambiar a página única'}
+        >
+          {viewMode === 'single' ? '📜 Vista continua' : '📄 Página única'}
         </button>
         <button className="icon-btn primary" onClick={onAddPage}>
           + Página
