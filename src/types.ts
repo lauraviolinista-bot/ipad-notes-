@@ -22,6 +22,11 @@ export type PenType =
   | 'gridTexture'
   | 'brick'
   | 'glitter'
+  | 'halftoneDots'
+  | 'pencil2H'
+  | 'pencil6B'
+  | 'softPastel'
+  | 'oilPastel'
 export type ShapeKind = 'line' | 'rectangle' | 'ellipse' | 'triangle'
 export type Tool = PenType | 'eraser' | 'select' | 'shape'
 

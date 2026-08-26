@@ -276,6 +276,34 @@ textarea {
   grid-template-columns: repeat(6, 1fr);
   gap: 6px;
 }
+.palette-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.palette-tab {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+}
+.palette-tab:hover {
+  border-color: var(--accent);
+}
+.palette-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+.palette-swatch-grid {
+  grid-template-columns: repeat(8, 1fr);
+  margin-top: 6px;
+}
 .swatch {
   width: 30px;
   height: 30px;

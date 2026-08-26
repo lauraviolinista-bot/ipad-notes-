@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { COLOR_PALETTES } from './colorPalettes'
 
 // Grayscale ramp: white to black (same column count as the hue grid below, for alignment).
 const GRAY_ROW = Array.from({ length: 12 }, (_, i) => {
@@ -51,6 +52,7 @@ function hslToHex(hsl: string): string {
 
 export default function ColorPicker({ color, color2, recentColors, onChange, onColor2Change }: ColorPickerProps) {
   const [customOpen, setCustomOpen] = useState(false)
+  const [activePalette, setActivePalette] = useState<string | null>(null)
   const duoActive = color2 != null
   // Which slot the spectrum grid writes into when duo mode is on.
   const [duoSlot, setDuoSlot] = useState<1 | 2>(1)
@@ -136,6 +138,34 @@ export default function ColorPicker({ color, color2, recentColors, onChange, onC
             ))}
           </div>
         ))}
+      </div>
+
+      <div className="color-section">
+        <span className="color-section-label">Paquetes de color</span>
+        <div className="palette-tabs">
+          {COLOR_PALETTES.map((p) => (
+            <button
+              key={p.id}
+              className={`palette-tab ${activePalette === p.id ? 'active' : ''}`}
+              onClick={() => setActivePalette((cur) => (cur === p.id ? null : p.id))}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {activePalette && (
+          <div className="swatch-grid palette-swatch-grid">
+            {COLOR_PALETTES.find((p) => p.id === activePalette)!.colors.map((c) => (
+              <button
+                key={c}
+                className={`swatch ${color.toLowerCase() === c.toLowerCase() ? 'active' : ''}`}
+                style={{ background: c }}
+                onClick={() => pick(c)}
+                aria-label={`Color ${c}`}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {recentColors.length > 0 && (

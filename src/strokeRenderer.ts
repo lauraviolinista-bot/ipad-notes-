@@ -213,7 +213,7 @@ function walkStamps(stroke: Stroke, spacing: number): Stamp[] {
 function drawPattern(
   ctx: CanvasRenderingContext2D,
   stroke: Stroke,
-  kind: 'crosshatch' | 'stipple' | 'grid' | 'brick',
+  kind: 'crosshatch' | 'stipple' | 'grid' | 'brick' | 'halftone',
 ) {
   const w = stroke.width
   const spacing = kind === 'stipple' ? w * 0.4 : w * 0.7
@@ -290,6 +290,21 @@ function drawPattern(
       ctx.fillStyle = stampColor
       ctx.fillRect(-bw / 2, -bh / 2, bw * 0.85, bh)
       ctx.restore()
+    } else if (kind === 'halftone') {
+      // Fixed dot grid across the stroke width — dot size grows with pressure,
+      // mimicking a print halftone screen instead of scattered stipple noise.
+      const lanes = [-0.3, 0, 0.3]
+      ctx.globalAlpha = stroke.opacity
+      ctx.fillStyle = stampColor
+      for (const lane of lanes) {
+        const off = lane * localW
+        const cx = s.x + perpX * off
+        const cy = s.y + perpY * off
+        const r = Math.max(0.6, localW * 0.16 * (0.5 + s.pressure * 0.6))
+        ctx.beginPath()
+        ctx.arc(cx, cy, r, 0, Math.PI * 2)
+        ctx.fill()
+      }
     }
   })
 }
