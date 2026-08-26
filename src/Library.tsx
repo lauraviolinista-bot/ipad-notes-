@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { Notebook } from './types'
 
 interface LibraryProps {
@@ -10,6 +10,9 @@ interface LibraryProps {
   onToggleFavorite: (id: string) => void
   onSetFolder: (id: string, folder: string | null) => void
   onSetTags: (id: string, tags: string[]) => void
+  onExportBackup: () => void
+  onImportBackup: (file: File) => void
+  backupStatus: string | null
 }
 
 const UNFILED = '__sin_carpeta__'
@@ -23,10 +26,14 @@ export default function Library({
   onToggleFavorite,
   onSetFolder,
   onSetTags,
+  onExportBackup,
+  onImportBackup,
+  backupStatus,
 }: LibraryProps) {
   const [activeFilter, setActiveFilter] = useState<string>('all')
   const [activeTags, setActiveTags] = useState<Set<string>>(new Set())
   const [editingId, setEditingId] = useState<string | null>(null)
+  const importInputRef = useRef<HTMLInputElement>(null)
 
   const folders = useMemo(() => {
     const set = new Set<string>()
@@ -79,6 +86,32 @@ export default function Library({
           <button className="icon-btn" onClick={onSearch} aria-label="Buscar">
             🔍 Buscar
           </button>
+          <button
+            className="icon-btn"
+            onClick={onExportBackup}
+            disabled={notebooks.length === 0}
+            title="Descargar todos los cuadernos como copia de seguridad"
+          >
+            ⬇️ Backup
+          </button>
+          <button
+            className="icon-btn"
+            onClick={() => importInputRef.current?.click()}
+            title="Importar cuadernos desde una copia de seguridad"
+          >
+            {backupStatus ?? '⬆️ Importar'}
+          </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) onImportBackup(file)
+              e.target.value = ''
+            }}
+          />
           <button className="icon-btn primary" onClick={onCreate}>
             + Nuevo cuaderno
           </button>

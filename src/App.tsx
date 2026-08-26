@@ -12,7 +12,15 @@ import type {
   TextStyle,
   Tool,
 } from './types'
-import { emptyNotebook, emptyPage, loadNotebooks, newId, saveNotebooks } from './storage'
+import {
+  emptyNotebook,
+  emptyPage,
+  exportBackup,
+  importBackupFile,
+  loadNotebooks,
+  newId,
+  saveNotebooks,
+} from './storage'
 import Toolbar from './Toolbar'
 import Canvas, { type CanvasHandle } from './Canvas'
 import PageStrip from './PageStrip'
@@ -51,6 +59,7 @@ export default function App() {
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false)
   const [insertPageAtIndex, setInsertPageAtIndex] = useState<number | null>(null)
   const [viewMode, setViewMode] = useState<'single' | 'continuous'>('single')
+  const [backupStatus, setBackupStatus] = useState<string | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [importBusy, setImportBusy] = useState<string | null>(null)
   const [indexingStatus, setIndexingStatus] = useState<string | null>(null)
@@ -641,6 +650,24 @@ export default function App() {
     setNotebooks((prev) => prev.map((n) => (n.id === id ? { ...n, tags } : n)))
   }
 
+  const handleExportBackup = () => {
+    exportBackup(notebooks)
+  }
+
+  const handleImportBackup = async (file: File) => {
+    setBackupStatus('Importando…')
+    try {
+      const imported = await importBackupFile(file)
+      commit((prev) => [...prev, ...imported])
+      setBackupStatus(`${imported.length} cuaderno(s) importado(s)`)
+    } catch (err) {
+      console.error('No se pudo importar la copia de seguridad', err)
+      setBackupStatus('No se pudo importar el archivo')
+    } finally {
+      setTimeout(() => setBackupStatus(null), 3000)
+    }
+  }
+
   if (!activeNotebook || !activePage) {
     return (
       <>
@@ -656,6 +683,9 @@ export default function App() {
           onToggleFavorite={handleToggleFavorite}
           onSetFolder={handleSetFolder}
           onSetTags={handleSetTags}
+          onExportBackup={handleExportBackup}
+          onImportBackup={handleImportBackup}
+          backupStatus={backupStatus}
         />
         {newNotebookOpen && (
           <NewNotebookModal

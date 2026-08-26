@@ -66,3 +66,36 @@ export function emptyNotebook(name: string, cover: NotebookCover = COVER_PRESETS
     cover,
   }
 }
+
+const BACKUP_VERSION = 1
+
+// Downloads all notebooks as a single JSON file — a manual backup/restore
+// path until real multi-device sync (which needs a backend account) exists.
+export function exportBackup(notebooks: Notebook[]) {
+  const payload = { version: BACKUP_VERSION, exportedAt: Date.now(), notebooks }
+  const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  const date = new Date().toISOString().slice(0, 10)
+  a.href = url
+  a.download = `notas-backup-${date}.json`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+// Parses a backup file and returns its notebooks with fresh ids, so importing
+// the same backup twice (or into a notebook list that already has some of
+// these notebooks) never collides with or overwrites existing data.
+export async function importBackupFile(file: File): Promise<Notebook[]> {
+  const text = await file.text()
+  const parsed = JSON.parse(text)
+  const notebooks: Notebook[] = Array.isArray(parsed) ? parsed : parsed.notebooks
+  if (!Array.isArray(notebooks)) throw new Error('Archivo de copia de seguridad no válido')
+  return notebooks.map((nb) => ({
+    ...nb,
+    id: newId(),
+    pages: nb.pages.map((p) => ({ ...p, id: newId() })),
+  }))
+}

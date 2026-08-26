@@ -730,6 +730,7 @@ textarea {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
+  flex-wrap: wrap;
   margin-bottom: 32px;
   gap: 16px;
 }
@@ -1373,6 +1374,8 @@ textarea {
 /* ---------- Library header actions / search ---------- */
 .library-header-actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
   flex-shrink: 0;
 }
