@@ -159,6 +159,15 @@ export function IconImage(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+export function IconRuler(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <rect x="2.5" y="8" width="19" height="8" rx="1.4" transform="rotate(-15 12 12)" />
+      <path d="M8.8 8.4l1 2.6M11.6 7.4l1 2.6M14.4 6.4l1 2.6M17.2 5.4l1 2.6" />
+    </Icon>
+  )
+}
+
 export function IconSpinner(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props} className="icon-spin">

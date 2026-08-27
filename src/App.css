@@ -631,6 +631,64 @@ textarea {
   transform: scale(1.04);
 }
 
+/* ---------- On-screen ruler tool ---------- */
+.ruler-bar {
+  position: absolute;
+  z-index: 6;
+  background: linear-gradient(180deg, rgba(255, 220, 130, 0.92), rgba(230, 190, 100, 0.92));
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 6px;
+  box-shadow: var(--shadow-lg);
+  cursor: grab;
+  touch-action: none;
+}
+.ruler-bar:active {
+  cursor: grabbing;
+}
+.ruler-edge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: rgba(0, 0, 0, 0.4);
+}
+.ruler-ticks {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.35) 0,
+    rgba(0, 0, 0, 0.35) 1px,
+    transparent 1px,
+    transparent 10px
+  );
+  background-position: 0 0;
+  background-size: 100% 14px;
+  background-repeat: repeat-x;
+}
+.ruler-rotate-handle {
+  position: absolute;
+  z-index: 7;
+  width: 34px;
+  height: 34px;
+  margin-left: -17px;
+  margin-top: -17px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  box-shadow: var(--shadow-md);
+  cursor: grab;
+  touch-action: none;
+}
+.ruler-rotate-handle:active {
+  cursor: grabbing;
+}
+
 /* ---------- Page elements (text / stickers) on canvas ---------- */
 .text-el {
   position: absolute;

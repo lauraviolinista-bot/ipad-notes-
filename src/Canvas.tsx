@@ -26,6 +26,9 @@ interface CanvasProps {
   lineCap?: LineCap
   pressureFactor?: number
   shapeAssist?: boolean
+  // When set (radians), pen strokes are forced straight along this angle —
+  // like resting the pencil against a ruler edge — regardless of drag direction.
+  rulerAngle?: number | null
   shapeKind: ShapeKind
   selectedStrokeIds: string[]
   onStrokeEnd: (stroke: Stroke) => void
@@ -121,6 +124,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
   lineCap,
   pressureFactor,
   shapeAssist,
+  rulerAngle,
   shapeKind,
   selectedStrokeIds,
   onStrokeEnd,
@@ -419,6 +423,20 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({
     }
     if (stroke.straight && startPointRef.current) {
       stroke.points = [startPointRef.current, getPoint(e)]
+      redrawOverlay()
+      return
+    }
+
+    if (rulerAngle != null && startPointRef.current) {
+      const start = startPointRef.current
+      const cur = getPoint(e)
+      const dx = cur.x - start.x
+      const dy = cur.y - start.y
+      const proj = dx * Math.cos(rulerAngle) + dy * Math.sin(rulerAngle)
+      stroke.points = [
+        start,
+        { x: start.x + Math.cos(rulerAngle) * proj, y: start.y + Math.sin(rulerAngle) * proj, pressure: 1 },
+      ]
       redrawOverlay()
       return
     }

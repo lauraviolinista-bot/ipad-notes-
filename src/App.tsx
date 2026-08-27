@@ -22,6 +22,7 @@ import {
   saveNotebooks,
 } from './storage'
 import Toolbar from './Toolbar'
+import Ruler from './Ruler'
 import Canvas, { type CanvasHandle } from './Canvas'
 import PageStrip from './PageStrip'
 import Library from './Library'
@@ -52,6 +53,8 @@ export default function App() {
   const [pressureFactor, setPressureFactor] = useState(1)
   const [snapToRuled, setSnapToRuled] = useState(false)
   const [shapeAssist, setShapeAssist] = useState(false)
+  const [rulerActive, setRulerActive] = useState(false)
+  const [rulerTransform, setRulerTransform] = useState<{ cx: number; cy: number; angle: number } | null>(null)
   const [recentColors, setRecentColors] = useState<string[]>([])
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null)
   const [selectedStrokeIds, setSelectedStrokeIds] = useState<string[]>([])
@@ -625,6 +628,18 @@ export default function App() {
     })
   }
 
+  const handleRulerToggle = () => {
+    setRulerActive((active) => {
+      if (active) return false
+      const rect = paperRef.current?.getBoundingClientRect()
+      const wrapRect = rect?.height
+        ? { width: rect.width, height: rect.height }
+        : { width: 700, height: 900 }
+      setRulerTransform({ cx: wrapRect.width / 2, cy: wrapRect.height / 2, angle: 0 })
+      return true
+    })
+  }
+
   const handleUndo = () => {
     const prev = historyRef.current.pop()
     if (!prev) return
@@ -765,6 +780,8 @@ export default function App() {
         onPressureFactorChange={setPressureFactor}
         onSnapToRuledToggle={() => setSnapToRuled((v) => !v)}
         onShapeAssistToggle={() => setShapeAssist((v) => !v)}
+        rulerActive={rulerActive}
+        onRulerToggle={handleRulerToggle}
         onShapeKindChange={setShapeKind}
         onUndo={handleUndo}
         onRedo={handleRedo}
@@ -835,6 +852,7 @@ export default function App() {
                 lineCap={lineCap}
                 pressureFactor={pressureFactor}
                 shapeAssist={shapeAssist}
+                rulerAngle={rulerActive ? rulerTransform?.angle ?? null : null}
                 shapeKind={shapeKind}
                 selectedStrokeIds={selectedStrokeIds}
                 onStrokeEnd={(stroke) => handleStrokeEnd(activePageIndex, stroke)}
@@ -888,6 +906,9 @@ export default function App() {
             <button className="zoom-reset-btn" onClick={resetZoom} aria-label="Restablecer zoom">
               ↺ {zoomPercent}%
             </button>
+          )}
+          {rulerActive && rulerTransform && (
+            <Ruler transform={rulerTransform} onChange={setRulerTransform} />
           )}
         </div>
       ) : (

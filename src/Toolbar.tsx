@@ -18,6 +18,7 @@ import {
   IconPen,
   IconPlus,
   IconRedo,
+  IconRuler,
   IconSearchText,
   IconShapes,
   IconSmiley,
@@ -38,6 +39,8 @@ interface ToolbarProps {
   pressureFactor: number
   snapToRuled: boolean
   shapeAssist: boolean
+  rulerActive: boolean
+  onRulerToggle: () => void
   pageTemplate: PageTemplate
   shapeKind: ShapeKind
   recentColors: string[]
@@ -86,6 +89,8 @@ export default function Toolbar({
   pressureFactor,
   snapToRuled,
   shapeAssist,
+  rulerActive,
+  onRulerToggle,
   pageTemplate,
   shapeKind,
   recentColors,
@@ -236,6 +241,15 @@ export default function Toolbar({
         >
           <span className="dock-icon"><IconShapes /></span>
           <span className="dock-label">Formas</span>
+        </button>
+
+        <button
+          className={`dock-btn ${rulerActive ? 'active' : ''}`}
+          onClick={onRulerToggle}
+          title="Regla: fuerza los trazos rectos al ángulo de la regla"
+        >
+          <span className="dock-icon"><IconRuler /></span>
+          <span className="dock-label">Regla</span>
         </button>
 
         {showsStyle && (
