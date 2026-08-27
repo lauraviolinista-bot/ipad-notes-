@@ -1,12 +1,30 @@
 import { useRef, useState } from 'react'
 import type { LineCap, LineDash, PageTemplate, PenType, ShapeKind, Tool } from './types'
 import { getPenPreset } from './penTypes'
-import { SHAPE_PRESETS, SHAPE_WIDTH_RANGE } from './shapes'
+import { SHAPE_WIDTH_RANGE } from './shapes'
 import ColorPicker from './ColorPicker'
 import BrushLibrary from './BrushLibrary'
 import Popover from './Popover'
 import StickerPicker from './StickerPicker'
 import ShapePicker from './ShapePicker'
+import {
+  IconChevronLeft,
+  IconCursor,
+  IconEraser,
+  IconExport,
+  IconFile,
+  IconImage,
+  IconLayersStack,
+  IconPen,
+  IconPlus,
+  IconRedo,
+  IconSearchText,
+  IconShapes,
+  IconSmiley,
+  IconSpinner,
+  IconText,
+  IconUndo,
+} from './Icons'
 
 interface ToolbarProps {
   notebookName: string
@@ -122,7 +140,6 @@ export default function Toolbar({
   const isShapeTool = tool === 'shape'
   const showsStyle = isPenTool || isShapeTool
   const activePreset = isPenTool ? getPenPreset(tool as PenType) : null
-  const activeShapePreset = SHAPE_PRESETS.find((s) => s.id === shapeKind)!
   const widthRange = isShapeTool
     ? SHAPE_WIDTH_RANGE
     : activePreset
@@ -146,15 +163,16 @@ export default function Toolbar({
     <header className="toolbar">
       <div className="toolbar-row toolbar-row-top">
         <button className="icon-btn" onClick={onBack} aria-label="Volver a notebooks">
-          ‹ Cuadernos
+          <IconChevronLeft />
+          <span>Cuadernos</span>
         </button>
         <span className="notebook-title">{notebookName}</span>
         <div className="toolbar-spacer" />
         <button className="icon-btn" onClick={onUndo} disabled={!canUndo} aria-label="Deshacer">
-          ↩︎
+          <IconUndo />
         </button>
         <button className="icon-btn" onClick={onRedo} disabled={!canRedo} aria-label="Rehacer">
-          ↪︎
+          <IconRedo />
         </button>
         <button
           className="icon-btn"
@@ -162,7 +180,8 @@ export default function Toolbar({
           disabled={indexingStatus !== null}
           title="Indexar el cuaderno para poder buscar el texto manuscrito"
         >
-          {indexingStatus ?? '🔤 Indexar'}
+          {indexingStatus ? <IconSpinner /> : <IconSearchText />}
+          <span>{indexingStatus ?? 'Indexar'}</span>
         </button>
         <button
           ref={exportButtonRef}
@@ -170,17 +189,20 @@ export default function Toolbar({
           onClick={() => setExportPopoverOpen((v) => !v)}
           disabled={exportBusy !== null}
         >
-          {exportBusy ?? '📤 Exportar'}
+          {exportBusy ? <IconSpinner /> : <IconExport />}
+          <span>{exportBusy ?? 'Exportar'}</span>
         </button>
         <button
           className="icon-btn"
           onClick={onViewModeToggle}
           title={viewMode === 'single' ? 'Cambiar a vista continua' : 'Cambiar a página única'}
         >
-          {viewMode === 'single' ? '📜 Vista continua' : '📄 Página única'}
+          {viewMode === 'single' ? <IconLayersStack /> : <IconFile />}
+          <span>{viewMode === 'single' ? 'Vista continua' : 'Página única'}</span>
         </button>
         <button className="icon-btn primary" onClick={onAddPage}>
-          + Página
+          <IconPlus />
+          <span>Página</span>
         </button>
       </div>
 
@@ -194,7 +216,7 @@ export default function Toolbar({
             setShapePopoverOpen(false)
           }}
         >
-          <span className="dock-icon">{activePreset ? activePreset.icon : '✏️'}</span>
+          <span className="dock-icon"><IconPen /></span>
           <span className="dock-label">{activePreset ? activePreset.label : 'Pluma'}</span>
         </button>
 
@@ -212,7 +234,7 @@ export default function Toolbar({
             setStylePopoverOpen(false)
           }}
         >
-          <span className="dock-icon">{activeShapePreset.icon}</span>
+          <span className="dock-icon"><IconShapes /></span>
           <span className="dock-label">Formas</span>
         </button>
 
@@ -241,7 +263,7 @@ export default function Toolbar({
             closePopovers()
           }}
         >
-          <span className="dock-icon">🧽</span>
+          <span className="dock-icon"><IconEraser /></span>
           <span className="dock-label">Borrador</span>
         </button>
         <button
@@ -251,11 +273,11 @@ export default function Toolbar({
             closePopovers()
           }}
         >
-          <span className="dock-icon">👆</span>
+          <span className="dock-icon"><IconCursor /></span>
           <span className="dock-label">Seleccionar</span>
         </button>
         <button className="dock-btn" onClick={onOpenText}>
-          <span className="dock-icon">🅰️</span>
+          <span className="dock-icon"><IconText /></span>
           <span className="dock-label">Texto</span>
         </button>
         <button
@@ -263,7 +285,7 @@ export default function Toolbar({
           className="dock-btn"
           onClick={() => setStickerPopoverOpen((v) => !v)}
         >
-          <span className="dock-icon">😊</span>
+          <span className="dock-icon"><IconSmiley /></span>
           <span className="dock-label">Stickers</span>
         </button>
         <button
@@ -272,7 +294,7 @@ export default function Toolbar({
           onClick={() => setImportPopoverOpen((v) => !v)}
           disabled={importBusy !== null}
         >
-          <span className="dock-icon">{importBusy ? '⏳' : '🖼️'}</span>
+          <span className="dock-icon">{importBusy ? <IconSpinner /> : <IconImage />}</span>
           <span className="dock-label">{importBusy ?? 'Fondo'}</span>
         </button>
       </div>
