@@ -61,6 +61,7 @@ export default function App() {
   const [insertPageAtIndex, setInsertPageAtIndex] = useState<number | null>(null)
   const [viewMode, setViewMode] = useState<'single' | 'continuous'>('single')
   const [backupStatus, setBackupStatus] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [importBusy, setImportBusy] = useState<string | null>(null)
   const [indexingStatus, setIndexingStatus] = useState<string | null>(null)
@@ -209,8 +210,19 @@ export default function App() {
     }
   }
 
+  // Debounced so a burst of strokes (each committing a notebooks update)
+  // doesn't re-serialize the whole notebook list — background images especially
+  // — to localStorage on every single one, which was showing up as jank.
+  const saveTimeoutRef = useRef<number | null>(null)
   useEffect(() => {
-    saveNotebooks(notebooks)
+    if (saveTimeoutRef.current) window.clearTimeout(saveTimeoutRef.current)
+    saveTimeoutRef.current = window.setTimeout(() => {
+      const ok = saveNotebooks(notebooks)
+      if (!ok) setSaveError('No se pudo guardar: el almacenamiento del navegador está lleno.')
+    }, 400)
+    return () => {
+      if (saveTimeoutRef.current) window.clearTimeout(saveTimeoutRef.current)
+    }
   }, [notebooks])
 
   useEffect(() => {
@@ -672,6 +684,14 @@ export default function App() {
   if (!activeNotebook || !activePage) {
     return (
       <>
+        {saveError && (
+          <div className="save-error-banner">
+            ⚠️ {saveError}
+            <button onClick={() => setSaveError(null)} aria-label="Cerrar aviso">
+              ×
+            </button>
+          </div>
+        )}
         <Library
           notebooks={notebooks}
           onOpen={(id) => {
@@ -710,6 +730,14 @@ export default function App() {
 
   return (
     <div className="app">
+      {saveError && (
+        <div className="save-error-banner">
+          ⚠️ {saveError}
+          <button onClick={() => setSaveError(null)} aria-label="Cerrar aviso">
+            ×
+          </button>
+        </div>
+      )}
       <Toolbar
         notebookName={activeNotebook.name}
         tool={tool}

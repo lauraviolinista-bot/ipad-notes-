@@ -41,11 +41,14 @@ export function loadNotebooks(): Notebook[] {
   }
 }
 
-export function saveNotebooks(notebooks: Notebook[]) {
+// Returns true on success, false when the write failed (e.g. storage quota
+// exceeded) — the caller surfaces this to the user instead of losing work silently.
+export function saveNotebooks(notebooks: Notebook[]): boolean {
   try {
     localStorage.setItem(KEY, JSON.stringify(notebooks))
+    return true
   } catch {
-    // storage full or unavailable — ignore, in-memory state still works
+    return false
   }
 }
 

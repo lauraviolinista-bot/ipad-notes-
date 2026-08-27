@@ -41,6 +41,39 @@
   padding-right: var(--safe-right);
   font-family: var(--font-ui);
   color: var(--ink);
+  animation: app-fade-in 0.25s ease-out;
+}
+
+@keyframes app-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.save-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff4e5;
+  border-bottom: 1px solid #f3c98b;
+  color: #7a4a00;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  z-index: 300;
+}
+.save-error-banner button {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: #7a4a00;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
 }
 
 button,
@@ -753,6 +786,7 @@ textarea {
     var(--bg);
   padding: max(36px, var(--safe-top)) max(32px, var(--safe-right)) max(32px, var(--safe-bottom))
     max(32px, var(--safe-left));
+  animation: app-fade-in 0.25s ease-out;
 }
 .library-header {
   display: flex;
