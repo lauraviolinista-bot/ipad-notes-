@@ -17,6 +17,7 @@ export const PAGE_TEMPLATES: TemplatePreset[] = [
   { id: 'todo', label: 'Lista de tareas', icon: '☑️' },
   { id: 'cornell', label: 'Notas Cornell', icon: '📝' },
   { id: 'calendar', label: 'Calendario mensual', icon: '📆' },
+  { id: 'stars', label: 'Estrellitas', icon: '✨' },
 ]
 
 const LINE_COLOR = 'rgba(60,60,70,0.16)'
@@ -93,6 +94,15 @@ export function templateBackgroundStyle(template: PageTemplate): CSSProperties {
         backgroundPosition: '0 40px, 0 40px',
         backgroundSize: '100% calc(100% - 40px), 100% calc(100% - 40px)',
         backgroundRepeat: 'no-repeat',
+      }
+    case 'stars':
+      return {
+        backgroundImage: `
+          radial-gradient(circle, rgba(255,143,184,0.22) 1.6px, transparent 1.8px),
+          radial-gradient(circle, rgba(108,200,232,0.22) 1.6px, transparent 1.8px),
+          radial-gradient(circle, rgba(185,138,240,0.22) 1.6px, transparent 1.8px)`,
+        backgroundSize: '64px 64px, 80px 80px, 96px 96px',
+        backgroundPosition: '0 0, 24px 40px, 48px 12px',
       }
     case 'blank':
     default:

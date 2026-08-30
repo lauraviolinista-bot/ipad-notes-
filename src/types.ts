@@ -100,6 +100,7 @@ export type PageTemplate =
   | 'todo'
   | 'cornell'
   | 'calendar'
+  | 'stars'
 
 export interface Page {
   id: string

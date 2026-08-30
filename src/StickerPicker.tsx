@@ -1,5 +1,9 @@
 const STICKER_CATEGORIES: { label: string; emojis: string[] }[] = [
   {
+    label: 'Kawaii',
+    emojis: ['🐰', '🐱', '🐻', '🐼', '🦄', '🧸', '🍓', '🍰', '🎀', '💖', '✨', '🌟'],
+  },
+  {
     label: 'Básicos',
     emojis: ['⭐️', '❤️', '✅', '❌', '⚠️', '🔥', '💡', '📌', '📎', '🔖', '🎯', '🚩'],
   },
