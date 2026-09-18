@@ -35,6 +35,7 @@ import TextFormatBar from './TextFormatBar'
 import { templateBackgroundStyle } from './pageTemplates'
 import { strokesBBox } from './geometry'
 import { importImageFile } from './imageImport'
+import Confetti from './Confetti'
 import './App.css'
 
 const MAX_RECENT_COLORS = 6
@@ -60,6 +61,7 @@ export default function App() {
   const [selectedStrokeIds, setSelectedStrokeIds] = useState<string[]>([])
   const [shapeKind, setShapeKind] = useState<ShapeKind>('line')
   const [newNotebookOpen, setNewNotebookOpen] = useState(false)
+  const [confettiKey, setConfettiKey] = useState<number | null>(null)
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false)
   const [insertPageAtIndex, setInsertPageAtIndex] = useState<number | null>(null)
   const [viewMode, setViewMode] = useState<'single' | 'continuous'>('single')
@@ -660,6 +662,7 @@ export default function App() {
     setActiveNotebookId(nb.id)
     setActivePageIndex(0)
     setNewNotebookOpen(false)
+    setConfettiKey(Date.now())
   }
 
   const handleDeleteNotebook = (id: string) => {
@@ -729,6 +732,7 @@ export default function App() {
             onClose={() => setNewNotebookOpen(false)}
           />
         )}
+        {confettiKey && <Confetti key={confettiKey} onDone={() => setConfettiKey(null)} />}
         {searchOpen && (
           <SearchModal
             notebooks={notebooks}
@@ -745,6 +749,7 @@ export default function App() {
 
   return (
     <div className="app">
+      {confettiKey && <Confetti key={confettiKey} onDone={() => setConfettiKey(null)} />}
       {saveError && (
         <div className="save-error-banner">
           ⚠️ {saveError}
