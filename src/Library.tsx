@@ -167,9 +167,9 @@ export default function Library({
 
       {notebooks.length === 0 ? (
         <div className="empty-state">
-          <span className="empty-state-icon">📓</span>
-          <p className="empty-state-title">Todavía no tienes cuadernos</p>
-          <p className="empty">Crea el primero y empieza a escribir.</p>
+          <span className="empty-state-icon empty-state-icon-float">🦄</span>
+          <p className="empty-state-title">Aún no tienes cuadernos</p>
+          <p className="empty">Crea el primero y dale tu toque ✨</p>
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
