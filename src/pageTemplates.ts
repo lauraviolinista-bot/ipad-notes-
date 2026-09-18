@@ -18,10 +18,20 @@ export const PAGE_TEMPLATES: TemplatePreset[] = [
   { id: 'cornell', label: 'Notas Cornell', icon: '📝' },
   { id: 'calendar', label: 'Calendario mensual', icon: '📆' },
   { id: 'stars', label: 'Estrellitas', icon: '✨' },
+  { id: 'hearts', label: 'Corazones', icon: '💕' },
 ]
 
 const LINE_COLOR = 'rgba(60,60,70,0.16)'
 const DOT_COLOR = 'rgba(60,60,70,0.28)'
+
+// Draws a small heart centered in a larger transparent tile, so the tile
+// size itself controls the spacing between hearts when repeated.
+function heartTile(fill: string, tile: number, heart: number): string {
+  const o = (tile - heart) / 2
+  const scale = heart / 24
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${tile}" height="${tile}"><path transform="translate(${o} ${o}) scale(${scale})" d="M12 21s-7.5-4.6-10-9.3C.5 8.5 2 4 6 4c2 0 3.5 1.2 4 2.5C10.5 5.2 12 4 14 4c4 0 5.5 4.5 4 7.7C19.5 16.4 12 21 12 21z" fill="${fill}"/></svg>`
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
+}
 
 export function templateBackgroundStyle(template: PageTemplate): CSSProperties {
   switch (template) {
@@ -103,6 +113,16 @@ export function templateBackgroundStyle(template: PageTemplate): CSSProperties {
           radial-gradient(circle, rgba(185,138,240,0.22) 1.6px, transparent 1.8px)`,
         backgroundSize: '64px 64px, 80px 80px, 96px 96px',
         backgroundPosition: '0 0, 24px 40px, 48px 12px',
+      }
+    case 'hearts':
+      return {
+        backgroundImage: `
+          ${heartTile('rgba(255,143,184,0.32)', 72, 13)},
+          ${heartTile('rgba(185,138,240,0.26)', 64, 10)},
+          ${heartTile('rgba(255,179,122,0.26)', 84, 11)}`,
+        backgroundSize: '72px 72px, 64px 64px, 84px 84px',
+        backgroundPosition: '0 0, 30px 38px, 54px 10px',
+        backgroundRepeat: 'repeat',
       }
     case 'blank':
     default:
