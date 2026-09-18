@@ -1762,3 +1762,21 @@ textarea {
     opacity: 0;
   }
 }
+
+/* ---------- Reduced motion: keep functional transitions, drop decorative ones ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .empty-state-icon-float,
+  .crash-screen-icon,
+  .sticker-item,
+  .confetti-piece {
+    animation: none !important;
+  }
+  .notebook-card:hover,
+  .notebook-card:active {
+    transform: none;
+  }
+  .popover,
+  .icon-spin {
+    animation-duration: 0.01ms !important;
+  }
+}
