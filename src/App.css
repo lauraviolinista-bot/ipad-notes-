@@ -525,6 +525,7 @@ textarea {
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background var(--t-fast), transform var(--t-fast);
+  animation: sticker-pop-in 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
 }
 .sticker-item:hover {
   background: var(--surface-sunken);
@@ -532,7 +533,30 @@ textarea {
 }
 .sticker-item:active {
   background: var(--line);
+  transform: scale(0.92);
 }
+@keyframes sticker-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4) rotate(-8deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+.sticker-grid .sticker-item:nth-child(1) { animation-delay: 0ms; }
+.sticker-grid .sticker-item:nth-child(2) { animation-delay: 18ms; }
+.sticker-grid .sticker-item:nth-child(3) { animation-delay: 36ms; }
+.sticker-grid .sticker-item:nth-child(4) { animation-delay: 54ms; }
+.sticker-grid .sticker-item:nth-child(5) { animation-delay: 72ms; }
+.sticker-grid .sticker-item:nth-child(6) { animation-delay: 90ms; }
+.sticker-grid .sticker-item:nth-child(7) { animation-delay: 108ms; }
+.sticker-grid .sticker-item:nth-child(8) { animation-delay: 126ms; }
+.sticker-grid .sticker-item:nth-child(9) { animation-delay: 144ms; }
+.sticker-grid .sticker-item:nth-child(10) { animation-delay: 162ms; }
+.sticker-grid .sticker-item:nth-child(11) { animation-delay: 180ms; }
+.sticker-grid .sticker-item:nth-child(12) { animation-delay: 198ms; }
 
 /* ---------- Canvas / paper ---------- */
 .canvas-wrap {
