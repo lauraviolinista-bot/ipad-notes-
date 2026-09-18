@@ -27,6 +27,7 @@ export type PenType =
   | 'pencil6B'
   | 'softPastel'
   | 'oilPastel'
+  | 'washiTape'
 export type ShapeKind = 'line' | 'rectangle' | 'ellipse' | 'triangle'
 export type Tool = PenType | 'eraser' | 'select' | 'shape'
 
