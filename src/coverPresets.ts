@@ -13,6 +13,10 @@ export const COVER_PRESETS: NotebookCover[] = [
   { background: '#e0f7ff', accent: '#6cc8e8', pattern: 'stripe' },
   { background: '#f1e6ff', accent: '#b98af0', pattern: 'plain' },
   { background: '#fff0d9', accent: '#ffb37a', pattern: 'bottom-bar' },
+  { background: '#d7f5e9', accent: '#5fd0a5', pattern: 'stripe' },
+  { background: '#fdeaf6', accent: '#f3a6d8', pattern: 'plain' },
+  { background: '#e6e9ff', accent: '#9aa3f5', pattern: 'bottom-bar' },
+  { background: '#fff9d6', accent: '#f5d76e', pattern: 'stripe' },
 ]
 
 export function randomCover(): NotebookCover {
