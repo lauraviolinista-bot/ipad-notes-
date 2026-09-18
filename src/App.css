@@ -1686,6 +1686,55 @@ textarea {
   background: var(--danger-soft);
 }
 
+/* ---------- Crash recovery screen ---------- */
+.crash-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px;
+  text-align: center;
+  background: var(--bg);
+  z-index: 1000;
+}
+.crash-screen-icon {
+  font-size: 48px;
+  margin-bottom: 4px;
+  animation: empty-state-float 3.2s ease-in-out infinite;
+}
+.crash-screen-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.crash-screen-desc {
+  margin: 0;
+  max-width: 320px;
+  font-size: 14px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+.crash-screen-btn {
+  margin-top: 14px;
+  padding: 10px 22px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--t-fast), transform var(--t-fast);
+}
+.crash-screen-btn:active {
+  background: var(--accent-dark);
+  transform: scale(0.96);
+}
+
 /* ---------- Confetti celebration ---------- */
 .confetti-overlay {
   position: fixed;
